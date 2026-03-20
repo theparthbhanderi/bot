@@ -10,7 +10,7 @@ from services.llm_service import (
     generate_code_review,
     chat_completion
 )
-from services.utils import clean_response, md_to_html, truncate_text
+from services.utils import clean_response, md_to_html, truncate_text, format_premium_response, FOOTER
 
 
 async def code_explain_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -19,13 +19,16 @@ async def code_explain_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         if update.message.reply_to_message:
             code = update.message.reply_to_message.text
         else:
-            await update.message.reply_text(
-                "💻 <b>Code Explainer</b>\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "📝 <b>Usage:</b> /explain [code]\n\n"
-                "Or reply to a code message with /explain",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="Code Explainer",
+                short="Understand complex code in simple terms.",
+                points=[
+                    "Usage: /explain [code]",
+                    "Or reply to any code message with /explain",
+                    "Supports multiple programming languages"
+                ]
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
     else:
         code = ' '.join(context.args)
@@ -35,14 +38,12 @@ async def code_explain_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     try:
         language = detect_language(code)
         explanation = generate_code_explanation(code, language)
-        explanation = clean_response(explanation)
-        explanation = md_to_html(explanation)
+        
+        # generate_code_explanation uses chat_completion which follows PREMIUM_PROMPT structure
+        formatted_explanation = md_to_html(clean_response(explanation))
 
         await update.message.reply_text(
-            f"💻 <b>Code Explanation</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🔤 <b>Language:</b> {language.title()}\n\n"
-            f"📖 <b>Explanation:</b>\n{truncate_text(explanation, 3800)}",
+            formatted_explanation + FOOTER,
             parse_mode="HTML"
         )
 
@@ -59,13 +60,16 @@ async def code_review_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         if update.message.reply_to_message:
             code = update.message.reply_to_message.text
         else:
-            await update.message.reply_text(
-                "🔍 <b>Code Review</b>\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "📝 <b>Usage:</b> /review [code]\n\n"
-                "Or reply to a code message with /review",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="Code Review",
+                short="Identify bugs and optimize your code.",
+                points=[
+                    "Usage: /review [code]",
+                    "Or reply to any code message with /review",
+                    "Suggestions for performance & readability"
+                ]
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
     else:
         code = ' '.join(context.args)
@@ -75,14 +79,10 @@ async def code_review_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         language = detect_language(code)
         review = generate_code_review(code, language)
-        review = clean_response(review)
-        review = md_to_html(review)
+        formatted_review = md_to_html(clean_response(review))
 
         await update.message.reply_text(
-            f"🔍 <b>Code Review</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🔤 <b>Language:</b> {language.title()}\n\n"
-            f"📋 <b>Review:</b>\n{truncate_text(review, 3800)}",
+            formatted_review + FOOTER,
             parse_mode="HTML"
         )
 
@@ -96,14 +96,16 @@ async def code_review_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def code_generate_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Generate code based on description."""
     if not context.args:
-        await update.message.reply_text(
-            "✨ <b>Code Generator</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "📝 <b>Usage:</b> /code [description]\n\n"
-            "💡 <b>Example:</b>\n"
-            "<code>/code function to sort a list in python</code>",
-            parse_mode="HTML"
+        text = format_premium_response(
+            title="Code Generator",
+            short="Generate production-quality code from descriptions.",
+            points=[
+                "Usage: /code [description]",
+                "Example: /code python script to scrape news",
+                "Includes comments and best practices"
+            ]
         )
+        await update.message.reply_text(text, parse_mode="HTML")
         return
 
     description = ' '.join(context.args)
@@ -111,8 +113,17 @@ async def code_generate_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
-        system_prompt = """You are a premium coding assistant. Generate clean, well-commented, production-quality code.
-        Format the code properly. Add brief explanations after the code."""
+        system_prompt = """You are a premium coding assistant. Generate clean, well-commented code.
+        Follow the EXACT UI structure:
+        🧠 <b>Code Generated</b>
+        ⚡ <b>Quick Answer</b>
+        {Brief summary of the code}
+        📖 <b>Explanation</b>
+        • {Technical detail 1}
+        • {Technical detail 2}
+        💡 <b>Tip</b>
+        {Usage tip}
+        Then provide the code block after the structured response."""
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -120,14 +131,10 @@ async def code_generate_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ]
 
         response = chat_completion(messages, max_tokens=1500)
-        response = clean_response(response)
-        response = md_to_html(response)
+        formatted_response = md_to_html(clean_response(response))
 
         await update.message.reply_text(
-            f"✨ <b>Generated Code</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"📋 <b>Request:</b> {description}\n\n"
-            f"{truncate_text(response, 3800)}",
+            formatted_response + FOOTER,
             parse_mode="HTML"
         )
 
@@ -141,14 +148,16 @@ async def code_generate_handler(update: Update, context: ContextTypes.DEFAULT_TY
 async def code_help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Get help with a coding concept."""
     if not context.args:
-        await update.message.reply_text(
-            "❓ <b>Coding Help</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "📝 <b>Usage:</b> /helpcode [topic]\n\n"
-            "💡 <b>Example:</b>\n"
-            "<code>/helpcode recursion</code>",
-            parse_mode="HTML"
+        text = format_premium_response(
+            title="Coding Help",
+            short="Learn about any programming concept or logic.",
+            points=[
+                "Usage: /helpcode [topic]",
+                "Example: /helpcode async in python",
+                "Explains with clear examples"
+            ]
         )
+        await update.message.reply_text(text, parse_mode="HTML")
         return
 
     topic = ' '.join(context.args)
@@ -156,8 +165,16 @@ async def code_help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
-        system_prompt = """Explain coding concepts clearly with examples. 
-        Use structured formatting. Be concise and helpful."""
+        system_prompt = """Explain coding concepts clearly.
+        Follow the EXACT UI structure:
+        🧠 <b>Concept Explained</b>
+        ⚡ <b>Quick Answer</b>
+        {Brief high-level summary}
+        📖 <b>Explanation</b>
+        • {Key detail 1}
+        • {Key detail 2}
+        💡 <b>Tip</b>
+        {Helpful advice}"""
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -165,13 +182,10 @@ async def code_help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
 
         response = chat_completion(messages, max_tokens=1000)
-        response = clean_response(response)
-        response = md_to_html(response)
+        formatted_response = md_to_html(clean_response(response))
 
         await update.message.reply_text(
-            f"❓ <b>Coding Help: {topic}</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"{truncate_text(response, 3800)}",
+            formatted_response + FOOTER,
             parse_mode="HTML"
         )
 
@@ -188,26 +202,33 @@ async def code_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         if update.message.reply_to_message:
             code = update.message.reply_to_message.text
         else:
-            await update.message.reply_text(
-                "📝 <b>Code Formatter</b>\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "📝 <b>Usage:</b> /format [code]",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="Code Formatter",
+                short="Format your code with proper syntax highlighting.",
+                points=[
+                    "Usage: /format [code]",
+                    "Or reply to any code message with /format",
+                    "Auto-detects programming language"
+                ]
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
     else:
         code = ' '.join(context.args)
 
     try:
         language = detect_language(code)
-
-        await update.message.reply_text(
-            f"📝 <b>Formatted Code</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🔤 <b>Language:</b> {language.title()}\n\n"
-            f"<code>{escape_html(code)}</code>",
-            parse_mode="HTML"
+        
+        text = format_premium_response(
+            title=f"Formatted: {language.title()}",
+            short="Here is your formatted code block.",
+            tip="Copy and paste directly into your editor!"
         )
+        
+        # Append the code block after the premium structure
+        text += f"\n<code>{escape_html(code)}</code>"
+
+        await update.message.reply_text(text, parse_mode="HTML")
 
     except Exception as e:
         await update.message.reply_text(

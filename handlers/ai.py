@@ -8,7 +8,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from services.llm_service import generate_ai_response
 from services.memory import get_memory_context, add_user_message, add_bot_message
-from services.utils import clean_response, md_to_html, truncate_text, FOOTER
+from services.utils import clean_response, md_to_html, truncate_text, FOOTER, format_premium_response
 from database import db
 
 async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,8 +44,9 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # 4. Ultra-Fast Formatting
-        formatted_response = clean_response(response)
-        formatted_response = md_to_html(formatted_response)
+        # The response from generate_ai_response is already following the new UI structure 
+        # via the updated PREMIUM_PROMPT, so we just need to ensure it's HTML safe.
+        formatted_response = md_to_html(clean_response(response))
         final_text = truncate_text(formatted_response, 4000) + FOOTER
 
         # 5. Quick Actions
@@ -68,6 +69,7 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"⚠️ <b>Error</b>\n\n{str(e)[:200]}", parse_mode="HTML")
 
+
 async def save_context_and_usage(user_id, user_message, response):
     """Internal helper to save data without blocking user UI."""
     add_user_message(user_id, user_message)
@@ -78,9 +80,23 @@ async def save_context_and_usage(user_id, user_message, response):
 async def clear_memory_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from services.memory import clear_memory
     clear_memory(update.effective_user.id)
-    await update.message.reply_text("✨ <b>Memory cleared!</b>", parse_mode="HTML")
+    text = format_premium_response(
+        title="Memory Cleared",
+        short="Your conversation history has been successfully reset.",
+        tip="Send a new message to start a fresh chat!"
+    )
+    await update.message.reply_text(text, parse_mode="HTML")
 
 async def usage_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     usage = db.get_daily_usage(user_id)
-    await update.message.reply_text(f"📊 <b>Usage:</b> {usage}", parse_mode="HTML")
+    text = format_premium_response(
+        title="Daily Usage",
+        short=f"You have used {usage} requests today.",
+        points=[
+            f"Daily Limit: {os.getenv('PREMIUM_DAILY_LIMIT', '10')}",
+            f"Remaining: {max(0, int(os.getenv('PREMIUM_DAILY_LIMIT', '10')) - usage)}"
+        ],
+        tip="Premium users get unlimited access!"
+    )
+    await update.message.reply_text(text, parse_mode="HTML")

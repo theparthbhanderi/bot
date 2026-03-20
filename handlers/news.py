@@ -7,8 +7,7 @@ import os
 import html
 from telegram import Update
 from telegram.ext import ContextTypes
-from services.utils import truncate_text, escape_markdown
-from gnews import GNews
+from services.utils import truncate_text, escape_markdown, format_premium_response
 
 
 # Initialize GNews client
@@ -19,15 +18,16 @@ gnews_client = GNews(language='en', max_results=10)
 async def news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle news search requests."""
     if not context.args:
-        await update.message.reply_text(
-            "📰 <b>News Search</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "📝 <b>Usage:</b> /news [topic]\n\n"
-            "💡 <b>Example:</b>\n"
-            "• <code>/news artificial intelligence</code>\n"
-            "• <code>/news India elections</code>",
-            parse_mode="HTML"
+        text = format_premium_response(
+            title="News Search",
+            short="Search for any topic to get the latest headlines.",
+            points=[
+                "Usage: /news [topic]",
+                "Example: /news technology",
+                "Real-time results via GNews"
+            ]
         )
+        await update.message.reply_text(text, parse_mode="HTML")
         return
 
     query = ' '.join(context.args)
@@ -38,29 +38,26 @@ async def news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         news = gnews_client.get_news(query)
 
         if not news:
-            await update.message.reply_text(
-                f"🔍 <b>No Results</b>\n\n"
-                f"No news found for: <i>{html.escape(query)}</i>",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="No Results",
+                short=f"I couldn't find any recent news for '{query}'.",
+                tip="Try a broader topic or different keywords."
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
 
-        response = (
-            f"📰 <b>News: {html.escape(query)}</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-        )
-
+        points = []
         for i, article in enumerate(news[:5], 1):
             title = html.escape(article.get('title', 'No title'))
             publisher = html.escape(article.get('publisher', {}).get('title', 'Unknown'))
-            published = article.get('published date', '')
             url = article.get('url', '')
+            points.append(f"<b><a href='{url}'>{title}</a></b>\n  📰 <i>{publisher}</i>")
 
-            response += f"{i}. <b><a href='{url}'>{title}</a></b>\n"
-            response += f"   📰 <i>{publisher}</i>"
-            if published:
-                response += f" • 🕐 {published}"
-            response += "\n\n"
+        response = format_premium_response(
+            title=f"News: {query.title()}",
+            short=f"Here are the top 5 articles related to {query}.",
+            points=points
+        )
 
         await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
 

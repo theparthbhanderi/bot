@@ -127,48 +127,46 @@ def md_to_html(text: str) -> str:
 
 # ==================== Premium UI Helpers ====================
 
-FOOTER = "\n\n━━━━━━━━━━━━━━━━━━━━━\n🚀 <i>Powered by Parth</i>"
+FOOTER = "\n━━━━━━━━━━━━━━━\n🚀 <i>Powered by Parth</i>"
 
-DIVIDER = "━━━━━━━━━━━━━━━━━━━━━"
-
-
-def format_response(
+def format_premium_response(
     title: str,
     short: str = "",
-    details: str = "",
+    points: List[str] = None,
     tip: str = "",
-    footer: bool = True
 ) -> str:
     """
-    Format a premium-style response for Telegram.
-    
-    Args:
-        title: Response title with emoji
-        short: Short 1-2 line answer
-        details: Detailed explanation
-        tip: Optional tip or example
-        footer: Whether to include footer branding
-    
-    Returns:
-        Formatted HTML string
+    Format a premium, clean, and highly readable UI response for Telegram.
+    Redesigned by Senior UI/UX Engineer.
     """
-    parts = [f"🧠 <b>{title}</b>\n"]
+    # 1. Header with Bold Title
+    res = f"🧠 <b>{title}</b>\n\n"
     
+    # 2. Quick Answer Section
     if short:
-        parts.append(f"⚡ <b>Short:</b>\n{short}\n")
+        res += f"⚡ <b>Quick Answer</b>\n{short}\n\n"
     
-    if details:
-        parts.append(f"📖 <b>Details:</b>\n{details}\n")
+    # 3. Explanation Section with Bullet Points
+    if points:
+        res += "📖 <b>Explanation</b>\n"
+        for p in points:
+            res += f"• {p}\n"
+        res += "\n"
     
+    # 4. Optional Tip Section
     if tip:
-        parts.append(f"💡 <b>Tip:</b>\n{tip}\n")
+        res += f"💡 <b>Tip</b>\n{tip}\n\n"
     
-    text = "\n".join(parts)
+    # 5. Single Light Divider & Footer
+    res += FOOTER
     
-    if footer:
-        text += FOOTER
-    
-    return text
+    return res
+
+def escape_html(text: str) -> str:
+    """Helper to make text HTML safe for Telegram."""
+    return (text.replace('&', '&amp;')
+            .replace('<', '&lt;')
+            .replace('>', '&gt;'))
 
 
 def detect_mode(text: str) -> str:

@@ -11,7 +11,7 @@ import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from services.llm_service import chat_completion, generate_ai_response, async_chat_completion
-from services.utils import clean_response, md_to_html, truncate_text, FOOTER, get_http_client
+from services.utils import clean_response, md_to_html, truncate_text, FOOTER, get_http_client, format_premium_response
 from services.cache_service import cache
 from services.memory import get_memory_context
 
@@ -103,7 +103,18 @@ async def final_synthesis(query: str, results: list) -> str:
 async def agent_mode_activation_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    text = "🤖 <b>Ultra-Optimized Agent Mode</b>\n\n⚡ Speculative Execution & Semantic Caching Active!\n\n💬 <i>Send your high-effort query (e.g., 'Compare iPhone 15 vs 16 with pricing and pros/cons')...</i>"
+    
+    text = format_premium_response(
+        title="Agent Mode",
+        short="Deep Research & Speculative Execution enabled.",
+        points=[
+            "Synthesizes multiple sources",
+            "Parallel tool execution",
+            "In-depth analysis reports"
+        ],
+        tip="Example: 'Explain quantum computing with its future impact'"
+    )
+    
     context.user_data["mode"] = "agent"
     keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="btn_main")]]
     await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -156,13 +167,9 @@ async def agent_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         answer = await final_synthesis(query, step_results)
         answer = md_to_html(answer)
 
-        final_text = (
-            f"{answer}\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n"
-            f"📊 <b>Confidence:</b> {random.randint(97, 99)}%\n"
-            f"⚡ <b>Engine:</b> Ultra-Optimized Agent"
-            + FOOTER
-        )
+        # Agent responses are already premium-formatted by final_synthesis 
+        # (which uses the updated LLM prompt). We just add footer.
+        final_text = truncate_text(answer, 3800) + FOOTER
 
         keyboard = [[
             InlineKeyboardButton("🔁 Simplify", callback_data="action_simplify"), 

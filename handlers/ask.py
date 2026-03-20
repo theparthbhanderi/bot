@@ -8,21 +8,24 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from services.llm_service import answer_question
 from services.vector_db import add_to_knowledge, search_knowledge
-from services.utils import clean_response, md_to_html
+from services.utils import clean_response, md_to_html, format_premium_response, FOOTER
 from database import db
 
 
 async def ask_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Answer questions using RAG (knowledge base + AI)."""
     if not context.args:
-        await update.message.reply_text(
-            "🤔 <b>Ask (RAG-Powered)</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "📝 <b>Usage:</b> /ask [question]\n\n"
-            "I'll search your knowledge base and give you the best answer.\n\n"
-            "💡 First, add content with /addkb",
-            parse_mode="HTML"
+        text = format_premium_response(
+            title="Ask Anything",
+            short="Search your personal Knowledge Base using AI.",
+            points=[
+                "Usage: /ask [question]",
+                "Uses RAG for accurate answers",
+                "Fallback to global AI knowledge"
+            ],
+            tip="First, add information using /addkb"
         )
+        await update.message.reply_text(text, parse_mode="HTML")
         return
 
     question = ' '.join(context.args)
@@ -32,23 +35,14 @@ async def ask_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         context_text = search_knowledge(user_id, question)
-
-        if context_text:
-            answer = answer_question(question, context_text)
-            source = "📚 Knowledge Base"
-        else:
-            answer = answer_question(question)
-            source = "🤖 AI"
-
-        answer = clean_response(answer)
-        answer = md_to_html(answer)
-
+        answer = answer_question(question, context_text) if context_text else answer_question(question)
+        
+        # answer_question uses chat_completion which will now return structured response 
+        # because of updated PREMIUM_PROMPT
+        formatted_answer = md_to_html(clean_response(answer))
+        
         await update.message.reply_text(
-            f"🤔 <b>Answer</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"📋 <b>Question:</b> {question}\n\n"
-            f"💬 <b>Answer:</b>\n{answer}\n\n"
-            f"<i>Source: {source}</i>",
+            formatted_answer + FOOTER,
             parse_mode="HTML"
         )
 
@@ -65,14 +59,16 @@ async def add_knowledge_handler(update: Update, context: ContextTypes.DEFAULT_TY
         if update.message.reply_to_message:
             content = update.message.reply_to_message.text
         else:
-            await update.message.reply_text(
-                "📚 <b>Add to Knowledge Base</b>\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "📝 <b>Usage:</b> /addkb [content]\n\n"
-                "Or reply to a message with /addkb\n\n"
-                "💡 I'll remember this for your future questions!",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="Add Knowledge",
+                short="Save information to your personal AI memory.",
+                points=[
+                    "Usage: /addkb [content]",
+                    "Or reply to any message with /addkb",
+                    "Stored for RAG semantic search"
+                ]
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
     else:
         content = ' '.join(context.args)
@@ -82,16 +78,14 @@ async def add_knowledge_handler(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         title = content[:50] + "..." if len(content) > 50 else content
         add_to_knowledge(user_id, title, content)
-
         db.add_to_knowledge_base(user_id, title, content)
 
-        await update.message.reply_text(
-            "✅ <b>Saved to Knowledge Base!</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"📄 <i>\"{title}\"</i>\n\n"
-            "You can now ask questions about this with /ask",
-            parse_mode="HTML"
+        text = format_premium_response(
+            title="Saved Successfully",
+            short=f"I've added \"{title}\" to your knowledge base.",
+            tip="You can now ask questions about this using /ask"
         )
+        await update.message.reply_text(text, parse_mode="HTML")
 
     except Exception as e:
         await update.message.reply_text(

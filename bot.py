@@ -108,21 +108,27 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• Deep search + Synthesis 🚀\n\n"
         "🤖 <b>AI Chat</b>\n"
         "• /ai [message] — Chat with AI\n"
-        "• /clear — Reset conversation\n\n"
+        "• /clear — Reset conversation\n"
+        "• /usage — Check daily limits\n\n"
         "📰 <b>News & Research</b>\n"
         "• /news [topic] — Search news\n"
-        "• /research [topic] — Web research\n\n"
+        "• /topnews — Global headlines\n"
+        "• /research [topic] — Web research\n"
+        "• /deepsearch [topic] — Deep analysis\n\n"
         "🔎 <b>Fact Check</b>\n"
         "• /factcheck [claim] — Verify a claim\n\n"
         "🛠️ <b>Utilities</b>\n"
         "• /youtube [url] — Video summary\n"
-        "• /website [url] — Website summary\n\n"
+        "• /website [url] — Website summary\n"
+        "• /extract [url] — Raw text extract\n\n"
         "💻 <b>Coding</b>\n"
         "• /explain [code] — Explain code\n"
-        "• /code [desc] — Generate code\n\n"
+        "• /code [desc] — Generate code\n"
+        "• /review [code] — Review code\n\n"
         "📚 <b>Knowledge Hub</b>\n"
         "• /addkb [text] — Save knowledge\n"
-        "• /ask [question] — Ask from KB\n\n"
+        "• /ask [question] — Ask from KB\n"
+        "• /mykb — List your saved info\n\n"
         "👨‍💻 <b>Developer</b>\n"
         "• /parth — Developer profile\n\n"
         "━━━━━━━━━━━━━━━━━━━━━\n"
@@ -331,12 +337,15 @@ def main():
             BotCommand("start", "🚀 Start the bot"),
             BotCommand("ai", "🤖 Chat with AI"),
             BotCommand("news", "📰 Search news"),
+            BotCommand("topnews", "📰 Top headlines"),
             BotCommand("research", "🔍 Web research"),
+            BotCommand("deepsearch", "🧠 Deep analysis"),
             BotCommand("factcheck", "🔎 Fact-check"),
             BotCommand("youtube", "🎬 YT summary"),
             BotCommand("website", "🌐 Web summary"),
             BotCommand("parth", "👨‍💻 Developer"),
             BotCommand("clear", "🗑️ Reset chat"),
+            BotCommand("usage", "📊 Check usage"),
             BotCommand("help", "📖 All commands")
         ]
         await application.bot.set_my_commands(commands)
@@ -349,19 +358,44 @@ def main():
     application.add_handler(CommandHandler("parth", parth_handler))
     application.add_handler(CommandHandler("ai", ai_chat_handler))
     application.add_handler(CommandHandler("clear", clear_memory_handler))
+    application.add_handler(CommandHandler("usage", usage_handler))
+    
+    # News handlers
     application.add_handler(CommandHandler("news", news_handler))
+    application.add_handler(CommandHandler("topnews", top_news_handler))
+    application.add_handler(CommandHandler("topic", news_by_topic_handler))
+    
+    # Research & Factcheck
     application.add_handler(CommandHandler("research", research_handler))
+    application.add_handler(CommandHandler("deepsearch", deep_research_handler))
     application.add_handler(CommandHandler("factcheck", fact_check_handler))
+    
+    # Media & Web handlers
     application.add_handler(CommandHandler("youtube", youtube_handler))
+    application.add_handler(CommandHandler("transcript", youtube_transcript_handler))
     application.add_handler(CommandHandler("website", website_handler))
+    application.add_handler(CommandHandler("extract", extract_text_handler))
+    application.add_handler(CommandHandler("headers", get_headers_handler))
+
+    # OCR & PDF handlers
+    application.add_handler(CommandHandler("ocrurl", ocr_url_handler))
+    application.add_handler(CommandHandler("pdfurl", pdf_url_handler))
+    application.add_handler(CommandHandler("pdfextract", pdf_extract_handler))
 
     # Code handlers
     application.add_handler(CommandHandler("explain", code_explain_handler))
+    application.add_handler(CommandHandler("review", code_review_handler))
     application.add_handler(CommandHandler("code", code_generate_handler))
+    application.add_handler(CommandHandler("helpcode", code_help_handler))
+    application.add_handler(CommandHandler("format", code_format_handler))
 
     # KB handlers
     application.add_handler(CommandHandler("ask", ask_handler))
     application.add_handler(CommandHandler("addkb", add_knowledge_handler))
+    application.add_handler(CommandHandler("mykb", my_knowledge_handler))
+    application.add_handler(CommandHandler("searchkb", search_knowledge_handler))
+    application.add_handler(CommandHandler("clearkb", clear_knowledge_handler))
+    application.add_handler(CommandHandler("confirmclear", confirm_clear_knowledge_handler))
 
     # Message handlers
     application.add_handler(MessageHandler(filters.PHOTO, ocr_handler))

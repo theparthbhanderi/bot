@@ -8,7 +8,7 @@ import html
 import aiohttp
 from telegram import Update
 from telegram.ext import ContextTypes
-from services.utils import truncate_text
+from services.utils import truncate_text, format_premium_response
 
 
 # Tavily API configuration
@@ -18,15 +18,16 @@ TAVILY_API_KEY = os.getenv('TAVILY_API_KEY', '')
 async def research_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle web research requests."""
     if not context.args:
-        await update.message.reply_text(
-            "🔬 <b>Web Research</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "📝 <b>Usage:</b> /research [topic]\n\n"
-            "💡 <b>Example:</b>\n"
-            "• <code>/research climate change effects</code>\n"
-            "• <code>/research latest AI developments</code>",
-            parse_mode="HTML"
+        text = format_premium_response(
+            title="Web Research",
+            short="Search the web for any topic using Tavily AI.",
+            points=[
+                "Usage: /research [topic]",
+                "Example: /research global warming",
+                "Fetches top 5 relevant sources"
+            ]
         )
+        await update.message.reply_text(text, parse_mode="HTML")
         return
 
     query = ' '.join(context.args)
@@ -35,12 +36,12 @@ async def research_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         if not TAVILY_API_KEY:
-            await update.message.reply_text(
-                "⚠️ <b>Not Configured</b>\n\n"
-                "Research API key is missing.\n"
-                "Set <code>TAVILY_API_KEY</code> in your environment.",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="Not Configured",
+                short="Research API key is missing.",
+                tip="Set TAVILY_API_KEY in your environment."
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
 
         # Use aiohttp for async request
@@ -61,33 +62,27 @@ async def research_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 data = await resp.json()
 
         if 'results' not in data or not data['results']:
-            await update.message.reply_text(
-                f"🔍 <b>No Results</b>\n\nNo research found for: <i>{html.escape(query)}</i>",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="No Results",
+                short=f"No research found for '{query}'.",
+                tip="Try a different or more specific query."
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
 
-        response_text = (
-            f"🔬 <b>Research: {html.escape(query)}</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-        )
-
+        points = []
         for i, result in enumerate(data['results'][:5], 1):
             title = html.escape(result.get('title', 'No title'))
-            content = html.escape(result.get('content', 'No content'))
             url = result.get('url', '')
+            points.append(f"<b><a href='{url}'>{title}</a></b>")
 
-            if len(content) > 200:
-                content = content[:197] + "..."
-
-            response_text += f"{i}. <b><a href='{url}'>{title}</a></b>\n"
-            response_text += f"<i>{content}</i>\n\n"
-
-        await update.message.reply_text(
-            truncate_text(response_text, 4000),
-            parse_mode="HTML",
-            disable_web_page_preview=True
+        response = format_premium_response(
+            title=f"Research: {query.title()}",
+            short=f"Found {len(points)} relevant sources for your query.",
+            points=points
         )
+
+        await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
 
     except Exception as e:
         await update.message.reply_text(
