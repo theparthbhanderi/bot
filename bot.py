@@ -26,6 +26,7 @@ from handlers.code import code_explain_handler, code_review_handler, code_genera
 from handlers.ask import ask_handler, add_knowledge_handler, my_knowledge_handler, clear_knowledge_handler, confirm_clear_knowledge_handler, search_knowledge_handler
 from handlers.developer import parth_handler, developer_identity_logic
 from handlers.agent import agent_mode_activation_handler, agent_handler
+from handlers.coach import coach_handler, set_goal_handler, tasks_handler, complete_task_callback
 
 # Services
 from services.utils import detect_mode, FOOTER
@@ -69,6 +70,9 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     keyboard = [
+        [
+            InlineKeyboardButton("🧑‍🎓 Personal AI Coach", callback_data="coach_main"),
+        ],
         [
             InlineKeyboardButton("🤖 Agent Mode (Deep)", callback_data="agent_mode"),
             InlineKeyboardButton("🤖 AI Chat", callback_data="btn_ai")
@@ -334,6 +338,9 @@ def main():
     async def post_init(application: Application):
         from telegram import BotCommand
         commands = [
+            BotCommand("coach", "🧑‍🎓 AI Coach"),
+            BotCommand("setgoal", "🎯 Set new goal"),
+            BotCommand("tasks", "📝 View daily tasks"),
             BotCommand("start", "🚀 Start the bot"),
             BotCommand("ai", "🤖 Chat with AI"),
             BotCommand("news", "📰 Search news"),
@@ -396,6 +403,19 @@ def main():
     application.add_handler(CommandHandler("searchkb", search_knowledge_handler))
     application.add_handler(CommandHandler("clearkb", clear_knowledge_handler))
     application.add_handler(CommandHandler("confirmclear", confirm_clear_knowledge_handler))
+
+    # AI Coach handlers
+    application.add_handler(CommandHandler("coach", coach_handler))
+    application.add_handler(CommandHandler("setgoal", set_goal_handler))
+    application.add_handler(CommandHandler("tasks", tasks_handler))
+    
+    # Callback handlers
+    application.add_handler(CallbackQueryHandler(agent_mode_activation_handler, pattern="^agent_mode$"))
+    application.add_handler(CallbackQueryHandler(coach_handler, pattern="^coach_main$"))
+    application.add_handler(CallbackQueryHandler(set_goal_handler, pattern="^coach_set_goal$"))
+    application.add_handler(CallbackQueryHandler(tasks_handler, pattern="^coach_tasks$"))
+    application.add_handler(CallbackQueryHandler(complete_task_callback, pattern="^coach_done_"))
+    application.add_handler(CallbackQueryHandler(start_handler, pattern="^btn_main$"))
 
     # Message handlers
     application.add_handler(MessageHandler(filters.PHOTO, ocr_handler))

@@ -83,13 +83,115 @@ def init_database():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # Table for Personal AI Coach Goals
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS coach_goals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            goal_title TEXT NOT NULL,
+            goal_description TEXT,
+            plan_json TEXT,
+            status TEXT DEFAULT 'active',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            target_date DATETIME
+        )
+    ''')
+
+    # Table for Daily Tasks
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS coach_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            goal_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            task_title TEXT NOT NULL,
+            is_completed INTEGER DEFAULT 0,
+            completed_at DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(goal_id) REFERENCES coach_goals(id)
+        )
+    ''')
+
+    # Table for Progress Tracking
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS coach_progress (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            goal_id INTEGER NOT NULL,
+            milestone TEXT,
+            achieved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(goal_id) REFERENCES coach_goals(id)
+        )
+    ''')
     
     conn.commit()
     conn.close()
     print("✅ Database initialized successfully!")
 
 
-# ==================== Memory System ====================
+# ==================== Personal AI Coach System ====================
+
+def create_coach_goal(user_id: int, title: str, description: str, plan_json: str) -> int:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT INTO coach_goals (user_id, goal_title, goal_description, plan_json) VALUES (?, ?, ?, ?)',
+        (user_id, title, description, plan_json)
+    )
+    goal_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return goal_id
+
+def get_active_goal(user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM coach_goals WHERE user_id = ? AND status = "active" LIMIT 1', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def add_coach_task(goal_id: int, user_id: int, title: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT INTO coach_tasks (goal_id, user_id, task_title) VALUES (?, ?, ?)',
+        (goal_id, user_id, title)
+    )
+    conn.commit()
+    conn.close()
+
+def get_daily_tasks(user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM coach_tasks 
+        WHERE user_id = ? AND is_completed = 0 
+        AND date(created_at) = date('now')
+    ''', (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+def complete_task(task_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        'UPDATE coach_tasks SET is_completed = 1, completed_at = CURRENT_TIMESTAMP WHERE id = ?',
+        (task_id,)
+    )
+    conn.commit()
+    conn.close()
+
+def get_coach_progress(user_id: int, goal_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) as total FROM coach_tasks WHERE goal_id = ?', (goal_id,))
+    total = cursor.fetchone()['total']
+    cursor.execute('SELECT COUNT(*) as completed FROM coach_tasks WHERE goal_id = ? AND is_completed = 1', (goal_id,))
+    completed = cursor.fetchone()['completed']
+    conn.close()
+    return {"total": total, "completed": completed, "percentage": (completed/total * 100) if total > 0 else 0}
 
 def add_message(user_id: int, role: str, content: str):
     """
