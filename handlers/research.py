@@ -64,10 +64,14 @@ async def research_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 data = await resp.json()
 
         if 'results' not in data or not data['results']:
+            # Fallback to pure LLM if search fails
+            prompt = f"Provide a brief summary for: '{query}'. Web search returned no results, so use your internal knowledge."
+            answer = await async_chat_completion([{"role": "user", "content": prompt}], max_tokens=500)
+            
             text = format_premium_response(
-                title="No Results",
-                short=f"No research found for '{query}'.",
-                tip="Try a different or more specific query."
+                title=f"AI Insight: {query.title()}",
+                short=md_to_html(clean_response(answer)),
+                tip="Web search was inconclusive, showing AI knowledge instead."
             )
             await update.message.reply_text(text, parse_mode="HTML")
             return
@@ -142,12 +146,17 @@ async def deep_research_handler(update: Update, context: ContextTypes.DEFAULT_TY
         data = resp.json()
 
         if 'results' not in data or not data['results']:
-            text = format_premium_response(
-                title="No Results",
-                short=f"No deep research found for '{query}'.",
-                tip="Try a different or more specific query."
+            # Fallback to pure LLM if search fails
+            await msg.edit_text("✨ <b>No direct web data found. Using AI Knowledge...</b>", parse_mode="HTML")
+            prompt = f"The user asked for deep research on: '{query}'. Web search returned no recent results. Provide a comprehensive answer based on your general knowledge. Start by mentioning that this is based on your internal knowledge base."
+            answer = await async_chat_completion([{"role": "user", "content": prompt}], max_tokens=1000)
+            
+            final_response = format_premium_response(
+                title=f"AI Insight: {query.title()}",
+                short=md_to_html(clean_response(answer)),
+                tip="Web search was inconclusive, showing AI knowledge instead."
             )
-            await msg.edit_text(text, parse_mode="HTML")
+            await msg.edit_text(truncate_text(final_response, 4000), parse_mode="HTML")
             return
 
         # 2. Synthesize answer with LLM if Tavily didn't provide one
