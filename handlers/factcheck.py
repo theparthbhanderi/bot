@@ -5,8 +5,8 @@ Handles fact checking using Google Fact Check API.
 
 import os
 from telegram import Update
+import html
 from telegram.ext import ContextTypes
-from services.utils import escape_markdown
 
 
 # Google Fact Check API configuration
@@ -67,7 +67,7 @@ async def fact_check_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         claim_text = claim_data.get('text', claim)
         
         response_text = f"🔍 <b>Fact Check Result</b>\n\n"
-        response_text += f"Claim: \"{escape_markdown(claim_text)}\"\n\n"
+        response_text += f"Claim: \"{html.escape(claim_text)}\"\n\n"
         
         # Check for reviews
         if 'claimReviews' in claim_data and claim_data['claimReviews']:
@@ -87,9 +87,8 @@ async def fact_check_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             else:
                 emoji = "❓"
             
-            response_text += f"<b>Rating:</b> {emoji} {escape_markdown(rating)}\n"
-            response_text += f"<b>Source:</b> {escape_markdown(publisher)}\n"
-            response_text += f"<b>URL:</b> {url}\n"
+            response_text += f"<b>Rating:</b> {emoji} <a href='{url}'>{html.escape(rating)}</a>\n"
+            response_text += f"<b>Source:</b> <i>{html.escape(publisher)}</i>\n"
         else:
             response_text += "❓ No reviews available for this claim."
         

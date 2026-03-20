@@ -5,8 +5,9 @@ Handles web research using Tavily API.
 
 import os
 from telegram import Update
+import html
 from telegram.ext import ContextTypes
-from services.utils import truncate_text, escape_markdown
+from services.utils import truncate_text
 
 
 # Tavily API configuration
@@ -73,17 +74,15 @@ async def research_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response_text = f"🔬 <b>Research: {query}</b>\n\n"
         
         for i, result in enumerate(data['results'][:5], 1):
-            title = escape_markdown(result.get('title', 'No title'))
-            content = escape_markdown(result.get('content', 'No content'))
+            title = html.escape(result.get('title', 'No title'))
+            content = html.escape(result.get('content', 'No content'))
             url = result.get('url', '')
             
-            # Truncate content
             if len(content) > 200:
                 content = content[:197] + "..."
             
-            response_text += f"<b>{i}. {title}</b>\n"
-            response_text += f"{content}\n"
-            response_text += f"🔗 {url}\n\n"
+            response_text += f"{i}. <b><a href='{url}'>{title}</a></b>\n"
+            response_text += f"<i>{content}</i>\n\n"
         
         await update.message.reply_text(response_text, parse_mode="HTML")
         
@@ -146,22 +145,21 @@ async def deep_research_handler(update: Update, context: ContextTypes.DEFAULT_TY
         
         # Include AI answer if available
         if 'answer' in data and data['answer']:
-            response_text += f"<b>Summary:</b>\n{escape_markdown(data['answer'])}\n\n"
+            response_text += f"<b>Summary:</b>\n{html.escape(data['answer'])}\n\n"
         
         if 'results' in data and data['results']:
             response_text += "<b>Sources:</b>\n\n"
             
             for i, result in enumerate(data['results'][:8], 1):
-                title = escape_markdown(result.get('title', 'No title'))
-                content = escape_markdown(result.get('content', 'No content'))
+                title = html.escape(result.get('title', 'No title'))
+                content = html.escape(result.get('content', 'No content'))
                 url = result.get('url', '')
                 
                 if len(content) > 150:
                     content = content[:147] + "..."
                 
-                response_text += f"<b>{i}. {title}</b>\n"
-                response_text += f"{content}\n"
-                response_text += f"🔗 {url}\n\n"
+                response_text += f"{i}. <b><a href='{url}'>{title}</a></b>\n"
+                response_text += f"<i>{content}</i>\n\n"
         
         await update.message.reply_text(truncate_text(response_text, 4000), parse_mode="HTML")
         

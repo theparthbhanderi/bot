@@ -53,10 +53,11 @@ async def news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             published = article.get('published date', 'Unknown date')
             url = article.get('url', '')
             
-            response += f"{i}. <b>{title}</b>\n"
-            response += f"   📰 {publisher}\n"
-            response += f"   🕐 {published}\n"
-            response += f"   🔗 {url}\n\n"
+            response += f"{i}. <b><a href='{url}'>{title}</a></b>\n"
+            response += f"   📰 <i>{publisher}</i>"
+            if published != 'Unknown date':
+                response += f" • 🕐 {published}"
+            response += "\n\n"
         
         await update.message.reply_text(response, parse_mode="HTML")
         
@@ -89,10 +90,11 @@ async def top_news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             published = article.get('published date', 'Unknown date')
             url = article.get('url', '')
             
-            response += f"{i}. <b>{title}</b>\n"
-            response += f"   📰 {publisher}\n"
-            response += f"   🕐 {published}\n"
-            response += f"   🔗 {url}\n\n"
+            response += f"{i}. <b><a href='{url}'>{title}</a></b>\n"
+            response += f"   📰 <i>{publisher}</i>"
+            if published != 'Unknown date':
+                response += f" • 🕐 {published}"
+            response += "\n\n"
         
         await update.message.reply_text(response, parse_mode="HTML")
         
@@ -135,9 +137,8 @@ async def news_by_topic_handler(update: Update, context: ContextTypes.DEFAULT_TY
             publisher = html.escape(article.get('publisher', {}).get('title', 'Unknown'))
             url = article.get('url', '')
             
-            response += f"{i}. <b>{title}</b>\n"
-            response += f"   📰 {publisher}\n"
-            response += f"   🔗 {url}\n\n"
+            response += f"{i}. <b><a href='{url}'>{title}</a></b>\n"
+            response += f"   📰 <i>{publisher}</i>\n\n"
         
         await update.message.reply_text(response, parse_mode="HTML")
         
