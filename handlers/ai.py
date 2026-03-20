@@ -5,11 +5,11 @@ Handles AI chat interactions with memory and premium features.
 
 import os
 import asyncio
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from services.llm_service import generate_ai_response
 from services.memory import add_user_message, add_bot_message, get_memory_context
-from services.utils import clean_response, md_to_html, truncate_text
+from services.utils import clean_response, md_to_html, truncate_text, FOOTER
 from database import db
 
 
@@ -19,14 +19,20 @@ DAILY_LIMIT = int(os.getenv('PREMIUM_DAILY_LIMIT', '10'))
 
 async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Handle AI chat messages.
-    Checks premium status and daily limit before processing.
+    Handle AI chat messages with premium UX.
+    Shows "Thinking..." then edits with final answer + quick action buttons.
     """
     user_id = update.effective_user.id
     user_message = update.message.text
 
     # Show typing indicator
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+
+    # Send "Thinking..." loading message
+    thinking_msg = await update.message.reply_text(
+        "⚡ <b>Thinking...</b>",
+        parse_mode="HTML"
+    )
 
     # Get conversation memory
     memory_context = get_memory_context(user_id)
@@ -47,7 +53,10 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Clean + convert markdown to HTML
         response = clean_response(response)
         response = md_to_html(response)
-        response = truncate_text(response, 4000)
+        response = truncate_text(response, 3800)
+
+        # Add footer
+        response += FOOTER
 
         # Save to memory
         add_user_message(user_id, user_message)
@@ -56,17 +65,27 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Increment usage
         db.increment_daily_usage(user_id)
 
-        # Small delay for human feel
-        await asyncio.sleep(0.5)
+        # Quick action buttons
+        keyboard = [
+            [
+                InlineKeyboardButton("🔁 Simplify", callback_data="action_simplify"),
+                InlineKeyboardButton("🌐 Translate", callback_data="action_translate"),
+            ],
+            [
+                InlineKeyboardButton("📋 Expand", callback_data="action_expand"),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Send response
-        await update.message.reply_text(
+        # Edit the "Thinking..." message with the actual response
+        await thinking_msg.edit_text(
             response,
-            parse_mode="HTML"
+            parse_mode="HTML",
+            reply_markup=reply_markup
         )
 
     except Exception as e:
-        await update.message.reply_text(
+        await thinking_msg.edit_text(
             f"⚠️ <b>Error</b>\n\n{str(e)[:200]}",
             parse_mode="HTML"
         )
@@ -80,7 +99,8 @@ async def clear_memory_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(
         "🗑️ <b>Memory Cleared!</b>\n\n"
         "Your conversation history has been reset.\n"
-        "You're ready for a fresh start! ✨",
+        "You're ready for a fresh start! ✨"
+        + FOOTER,
         parse_mode="HTML"
     )
 
@@ -99,7 +119,7 @@ async def usage_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🏷️ <b>Plan:</b> {premium_badge}\n"
         f"📈 <b>Today:</b> {usage['daily_queries']}/{DAILY_LIMIT} queries\n"
         f"⏳ <b>Remaining:</b> {remaining}\n"
-        f"📊 <b>Total:</b> {usage['total_queries']} all-time queries\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━━",
+        f"📊 <b>Total:</b> {usage['total_queries']} all-time queries"
+        + FOOTER,
         parse_mode="HTML"
     )

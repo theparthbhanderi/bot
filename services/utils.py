@@ -107,6 +107,88 @@ def md_to_html(text: str) -> str:
     return text
 
 
+# ==================== Premium UI Helpers ====================
+
+FOOTER = "\n\n━━━━━━━━━━━━━━━━━━━━━\n🚀 <i>Powered by Parth</i>"
+
+DIVIDER = "━━━━━━━━━━━━━━━━━━━━━"
+
+
+def format_response(
+    title: str,
+    short: str = "",
+    details: str = "",
+    tip: str = "",
+    footer: bool = True
+) -> str:
+    """
+    Format a premium-style response for Telegram.
+    
+    Args:
+        title: Response title with emoji
+        short: Short 1-2 line answer
+        details: Detailed explanation
+        tip: Optional tip or example
+        footer: Whether to include footer branding
+    
+    Returns:
+        Formatted HTML string
+    """
+    parts = [f"🧠 <b>{title}</b>\n"]
+    
+    if short:
+        parts.append(f"⚡ <b>Short:</b>\n{short}\n")
+    
+    if details:
+        parts.append(f"📖 <b>Details:</b>\n{details}\n")
+    
+    if tip:
+        parts.append(f"💡 <b>Tip:</b>\n{tip}\n")
+    
+    text = "\n".join(parts)
+    
+    if footer:
+        text += FOOTER
+    
+    return text
+
+
+def detect_mode(text: str) -> str:
+    """
+    Auto-detect user intent from message text.
+    
+    Args:
+        text: User message
+    
+    Returns:
+        Detected mode: 'youtube', 'news', 'research', 'factcheck', 'code', or 'chat'
+    """
+    text_lower = text.lower()
+    
+    # YouTube detection
+    if any(kw in text_lower for kw in ['youtube', 'youtu.be', 'video summarize', 'video summary']):
+        return 'youtube'
+    
+    # News detection
+    if any(kw in text_lower for kw in ['latest news', 'news about', 'headlines', 'khabar']):
+        return 'news'
+    
+    # Research detection
+    if any(kw in text_lower for kw in ['research', 'search about', 'find info', 'deep search']):
+        return 'research'
+    
+    # Fact check detection
+    if any(kw in text_lower for kw in ['fact check', 'is it true', 'verify', 'real or fake']):
+        return 'factcheck'
+    
+    # Code detection
+    if any(kw in text_lower for kw in ['write code', 'generate code', 'code for', 'program for']):
+        return 'code'
+    
+    return 'chat'
+
+
+
 def format_bytes(bytes_size: int) -> str:
     """
     Format bytes to human-readable string.

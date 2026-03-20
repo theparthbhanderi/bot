@@ -26,6 +26,11 @@ from handlers.code import code_explain_handler, code_review_handler, code_genera
 from handlers.ask import ask_handler, add_knowledge_handler, my_knowledge_handler, clear_knowledge_handler, confirm_clear_knowledge_handler, search_knowledge_handler
 from handlers.developer import parth_handler, developer_identity_logic
 
+# Services
+from services.utils import detect_mode, FOOTER
+from services.llm_service import generate_ai_response, chat_completion
+from services.utils import clean_response, md_to_html, truncate_text
+
 # Telegram imports
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -48,30 +53,36 @@ logger = logging.getLogger(__name__)
 # ==================== Bot Commands ====================
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command."""
+    """Handle /start command with premium app-like UI."""
     user = update.effective_user
     welcome_text = (
-        f"👋 <b>Welcome to KINGPARTHH Bot, {user.first_name}!</b>\n\n"
-        "💎 <i>Your Premium AI Assistant</i>\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "⚡ <b>What I Can Do:</b>\n"
-        "• 🤖 AI Chat — Smart conversations\n"
-        "• 📰 News — Latest headlines\n"
-        "• 🔍 Research — Deep web research\n"
-        "• 🔎 Fact Check — Verify any claim\n"
-        "• 🛠️ Tools — Web/YT/PDF analysis\n"
-        "• 💻 Code — Write, explain, review\n"
-        "• 📚 Knowledge — RAG-powered Q&A\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "👇 <b>Choose a category to explore:</b>"
+        f"✨ <b>Welcome to KINGPARTHH Bot</b>\n\n"
+        f"Hey {user.first_name}! 👋\n"
+        f"Your all-in-one AI assistant 🚀\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"Choose what you want to do 👇"
     )
 
     keyboard = [
-        [InlineKeyboardButton("🤖 AI Chat", callback_data="btn_ai"), InlineKeyboardButton("📰 News", callback_data="btn_news")],
-        [InlineKeyboardButton("🔍 Research", callback_data="btn_research"), InlineKeyboardButton("🔎 Fact Check", callback_data="btn_fact")],
-        [InlineKeyboardButton("🛠️ Tools (Web/YT/PDF)", callback_data="btn_tools")],
-        [InlineKeyboardButton("💻 Coding", callback_data="btn_code"), InlineKeyboardButton("📚 Knowledge Hub", callback_data="btn_kb")],
-        [InlineKeyboardButton("👨‍💻 Developer", callback_data="btn_dev")]
+        [
+            InlineKeyboardButton("🤖 AI Chat", callback_data="btn_ai"),
+            InlineKeyboardButton("🧠 Research", callback_data="btn_research")
+        ],
+        [
+            InlineKeyboardButton("📰 News", callback_data="btn_news"),
+            InlineKeyboardButton("🔎 Fact Check", callback_data="btn_fact")
+        ],
+        [
+            InlineKeyboardButton("🎬 YouTube", callback_data="btn_tools"),
+            InlineKeyboardButton("🖼️ OCR / PDF", callback_data="btn_ocr")
+        ],
+        [
+            InlineKeyboardButton("💻 Coding", callback_data="btn_code"),
+            InlineKeyboardButton("📚 Knowledge", callback_data="btn_kb")
+        ],
+        [
+            InlineKeyboardButton("👨‍💻 Developer", callback_data="btn_dev")
+        ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -112,12 +123,12 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📚 <b>Knowledge Hub</b>\n"
         "• /addkb [text] — Save knowledge\n"
         "• /ask [question] — Ask from KB\n"
-        "• /mykb — View saved items\n"
-        "• /searchkb [query] — Search KB\n\n"
+        "• /mykb — View saved items\n\n"
         "👨‍💻 <b>Developer</b>\n"
         "• /parth — Developer profile\n\n"
         "━━━━━━━━━━━━━━━━━━━━━\n\n"
         "💡 <b>Tip:</b> Just send a message to chat with AI directly!"
+        + FOOTER
     )
     await update.message.reply_text(help_text, parse_mode="HTML")
 
@@ -134,22 +145,58 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle regular messages (echo with AI)."""
+    """Handle regular messages with smart auto mode detection."""
+    text = update.message.text
+    mode = detect_mode(text)
+
+    if mode == 'youtube':
+        # Try to extract URL and redirect
+        from services.utils import extract_urls
+        urls = extract_urls(text)
+        yt_urls = [u for u in urls if 'youtube.com' in u or 'youtu.be' in u]
+        if yt_urls:
+            context.args = [yt_urls[0]]
+            await youtube_handler(update, context)
+            return
+
+    elif mode == 'news':
+        # Strip the keyword and search
+        query = text.lower().replace('latest news', '').replace('news about', '').replace('headlines', '').replace('khabar', '').strip()
+        if query:
+            context.args = query.split()
+            await news_handler(update, context)
+            return
+
+    elif mode == 'factcheck':
+        query = text.lower().replace('fact check', '').replace('is it true', '').replace('verify', '').replace('real or fake', '').strip()
+        if query:
+            context.args = query.split()
+            await fact_check_handler(update, context)
+            return
+
+    # Default: AI chat
     await ai_chat_handler(update, context)
 
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle inline keyboard button clicks."""
+    """Handle inline keyboard button clicks with smooth navigation."""
     query = update.callback_query
     await query.answer()
 
     data = query.data
 
+    # Main menu navigation
     if data == "btn_main":
         await start_handler(update, context)
         return
 
-    back_button = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="btn_main")]]
+    # Quick action buttons (from AI responses)
+    if data.startswith("action_"):
+        await handle_quick_action(update, context, data)
+        return
+
+    # Back button for all categories
+    back_button = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="btn_main")]]
     reply_markup = InlineKeyboardMarkup(back_button)
 
     category_texts = {
@@ -170,7 +217,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💡 <i>Example: /news artificial intelligence</i>"
         ),
         "btn_research": (
-            "🔍 <b>Deep Research</b>\n\n"
+            "🧠 <b>Deep Research</b>\n\n"
             "━━━━━━━━━━━━━━━━━━━━━\n\n"
             "• /research [topic] — Web research\n"
             "• /deepsearch [topic] — In-depth analysis\n\n"
@@ -183,13 +230,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💡 <i>Example: /factcheck The earth is flat</i>"
         ),
         "btn_tools": (
-            "🛠️ <b>Utilities</b>\n\n"
+            "🎬 <b>YouTube & Web Tools</b>\n\n"
             "━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "• /website [url] — Summarize any website\n"
-            "• /extract [url] — Extract text from site\n"
-            "• /youtube [url] — Summarize YouTube video\n\n"
-            "📷 <i>Send an Image → Text extraction</i>\n"
-            "📄 <i>Send a PDF → Auto-summarize</i>"
+            "• /youtube [url] — Summarize video\n"
+            "• /website [url] — Summarize website\n"
+            "• /extract [url] — Extract text\n\n"
+            "💡 <i>Just paste a YouTube link to auto-summarize!</i>"
+        ),
+        "btn_ocr": (
+            "🖼️ <b>OCR & PDF Tools</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "• 📷 Send an image → Extract text\n"
+            "• 📄 Send a PDF → Auto-summarize\n"
+            "• /ocrurl [url] — OCR from image URL\n\n"
+            "💡 <i>Just send any photo with text!</i>"
         ),
         "btn_code": (
             "💻 <b>Coding Assistant</b>\n\n"
@@ -198,7 +252,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• /review [code] — Review & improve\n"
             "• /code [desc] — Generate code\n"
             "• /helpcode [topic] — Programming help\n\n"
-            "💡 <i>Reply to a code message with /explain too!</i>"
+            "💡 <i>Reply to code with /explain for instant explanation!</i>"
         ),
         "btn_kb": (
             "📚 <b>Knowledge Hub (RAG)</b>\n\n"
@@ -214,12 +268,66 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "👨‍💻 <b>Developer Info</b>\n\n"
             "━━━━━━━━━━━━━━━━━━━━━\n\n"
             "• /parth — View developer profile\n\n"
-            "💎 <i>Built by Parth R. Bhanderi</i>"
+            "💎 <i>Built with ❤️ by Parth R. Bhanderi</i>"
         )
     }
 
     text = category_texts.get(data, "❓ Unknown option selected.")
     await query.edit_message_text(text, parse_mode="HTML", reply_markup=reply_markup)
+
+
+async def handle_quick_action(update: Update, context: ContextTypes.DEFAULT_TYPE, action: str):
+    """Handle quick action buttons (Simplify, Translate, Expand)."""
+    query = update.callback_query
+    original_text = query.message.text or ""
+
+    if not original_text:
+        await query.answer("No content to process.")
+        return
+
+    # Show processing
+    await query.answer("⚡ Processing...")
+    await query.edit_message_text("⚡ <b>Processing...</b>", parse_mode="HTML")
+
+    try:
+        if action == "action_simplify":
+            prompt = f"Simplify this explanation for a beginner. Keep it very short and clear:\n\n{original_text[:2000]}"
+            title = "🔁 Simplified"
+        elif action == "action_translate":
+            prompt = f"Translate this to Hindi (Hinglish style). Keep formatting:\n\n{original_text[:2000]}"
+            title = "🌐 Translated"
+        elif action == "action_expand":
+            prompt = f"Expand on this with more details and examples:\n\n{original_text[:2000]}"
+            title = "📋 Expanded"
+        else:
+            await query.edit_message_text(original_text, parse_mode="HTML")
+            return
+
+        response = chat_completion(
+            [{"role": "user", "content": prompt}],
+            max_tokens=1500
+        )
+
+        response = clean_response(response)
+        response = md_to_html(response)
+
+        final_text = f"{title}\n\n━━━━━━━━━━━━━━━━━━━━━\n\n{response}" + FOOTER
+
+        # Back to menu button
+        keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="btn_main")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            truncate_text(final_text, 4000),
+            parse_mode="HTML",
+            reply_markup=reply_markup
+        )
+
+    except Exception as e:
+        await query.edit_message_text(
+            f"⚠️ <b>Error</b>\n\n{str(e)[:200]}",
+            parse_mode="HTML"
+        )
 
 
 # ==================== Main Function ====================
@@ -322,10 +430,10 @@ def main():
     # Developer identity auto-detection (higher priority group)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, developer_identity_logic), group=-1)
 
-    # Handle regular text messages with AI
+    # Handle regular text messages with smart mode detection + AI
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_handler))
 
-    # Handle inline keyboards
+    # Handle inline keyboards (including quick action buttons)
     application.add_handler(CallbackQueryHandler(button_handler))
 
     # Error handler
