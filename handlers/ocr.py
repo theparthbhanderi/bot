@@ -7,7 +7,7 @@ import os
 import io
 from telegram import Update
 from telegram.ext import ContextTypes
-from services.utils import truncate_text
+from services.utils import truncate_text, format_premium_response
 
 
 # Google Cloud Vision API configuration
@@ -17,24 +17,29 @@ GOOGLE_CLOUD_VISION_API_KEY = os.getenv('GOOGLE_CLOUD_VISION_API_KEY', '')
 async def ocr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle OCR requests. User sends an image and the bot extracts text."""
     if not update.message.photo:
-        await update.message.reply_text(
-            "📷 <b>OCR — Image to Text</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "Send me an image and I'll extract text from it!\n\n"
-            "✅ <b>Supported:</b> JPEG, PNG, GIF, BMP, WebP",
-            parse_mode="HTML"
+        text = format_premium_response(
+            title="OCR — Image to Text",
+            short="Extract text from any image instantly.",
+            points=[
+                "Supported: JPEG, PNG, GIF, BMP, WebP",
+                "Works with screenshots and documents",
+                "High-accuracy extraction"
+            ],
+            tip="Just send or forward an image!"
         )
+        await update.message.reply_text(text, parse_mode="HTML")
         return
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
         if not GOOGLE_CLOUD_VISION_API_KEY:
-            await update.message.reply_text(
-                "⚠️ <b>Not Configured</b>\n\n"
-                "Set <code>GOOGLE_CLOUD_VISION_API_KEY</code> in your environment.",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="Not Configured",
+                short="Google Vision API key is missing.",
+                tip="Set GOOGLE_CLOUD_VISION_API_KEY in your environment."
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
 
         photo = update.message.photo[-1]

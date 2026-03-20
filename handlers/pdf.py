@@ -8,7 +8,7 @@ import io
 import tempfile
 from telegram import Update
 from telegram.ext import ContextTypes
-from services.utils import truncate_text, download_file
+from services.utils import truncate_text, download_file, format_premium_response, FOOTER
 from services.llm_service import generate_summary
 from pypdf import PdfReader
 
@@ -16,15 +16,20 @@ from pypdf import PdfReader
 async def pdf_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handle PDF document processing.
-    User sends a PDF and the bot extracts text and summarizes it.
     """
     # Check for document
     if not update.message.document:
-        await update.message.reply_text(
-            "📄 <b>PDF Summarizer</b>\n\n"
-            "Please send me a PDF document and I'll summarize it for you!",
-            parse_mode="HTML"
+        text = format_premium_response(
+            title="PDF Summarizer",
+            short="Upload a PDF to get an instant AI-powered summary.",
+            points=[
+                "Extracts key insights and data",
+                "Handles long documents with ease",
+                "Supports research papers and reports"
+            ],
+            tip="Just send or forward any PDF file!"
         )
+        await update.message.reply_text(text, parse_mode="HTML")
         return
     
     # Check if it's a PDF

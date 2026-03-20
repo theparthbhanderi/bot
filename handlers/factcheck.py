@@ -7,6 +7,7 @@ import os
 import html
 import aiohttp
 from telegram import Update
+from telegram.ext import ContextTypes
 from services.utils import truncate_text, format_premium_response
 
 
