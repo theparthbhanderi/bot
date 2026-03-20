@@ -23,15 +23,7 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_message = update.message.text
     
-    # Check daily limit
-    if not db.check_daily_limit(user_id, DAILY_LIMIT):
-        usage = db.get_daily_usage(user_id)
-        await update.message.reply_text(
-            f"⚠️ Daily limit reached! You've used {usage['daily_queries']}/{DAILY_LIMIT} free queries today.\n\n"
-            f"Upgrade to premium for unlimited access!",
-            reply_markup=None
-        )
-        return
+    # Daily limit check removed by user request
     
     # Show typing indicator
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
@@ -59,14 +51,9 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Increment usage
         db.increment_daily_usage(user_id)
         
-        # Show remaining limits
-        usage = db.get_daily_usage(user_id)
-        remaining = DAILY_LIMIT - usage['daily_queries']
-        
         # Send response
         await update.message.reply_text(
-            f"{response}\n\n"
-            f"📊 Daily limit: {remaining}/{DAILY_LIMIT} remaining",
+            response,
             parse_mode="HTML"
         )
         
