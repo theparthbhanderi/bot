@@ -1,5 +1,5 @@
 """
-Ask Handler for Telegram Super Bot
+Ask Handler for KINGPARTHH Bot
 Handles RAG (Retrieval-Augmented Generation) question answering.
 """
 

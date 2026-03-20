@@ -1,5 +1,5 @@
 """
-Website Handler for Telegram Super Bot
+Website Handler for KINGPARTHH Bot
 Handles website content extraction and summarization.
 """
 

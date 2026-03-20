@@ -1,5 +1,5 @@
 """
-YouTube Handler for Telegram Super Bot
+YouTube Handler for KINGPARTHH Bot
 Handles YouTube video transcription and summarization.
 """
 

@@ -1,5 +1,5 @@
 """
-Database module for Telegram Super Bot
+Database module for KINGPARTHH Bot
 Handles SQLite database operations for memory, premium, and user management.
 """
 

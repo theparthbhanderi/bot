@@ -1,4 +1,4 @@
-# 🤖 Telegram Super Bot
+# 🤖 KINGPARTHH Bot
 
 A comprehensive, production-ready Telegram bot with AI capabilities, RAG system, and multiple useful features.
 
@@ -190,7 +190,7 @@ sudo nano /etc/systemd/system/telegram-bot.service
 
 ```ini
 [Unit]
-Description=Telegram Super Bot
+Description=KINGPARTHH Bot
 After=network.target
 
 [Service]

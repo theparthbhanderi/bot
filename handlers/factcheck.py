@@ -1,5 +1,5 @@
 """
-Fact Check Handler for Telegram Super Bot
+Fact Check Handler for KINGPARTHH Bot
 Handles fact checking using Google Fact Check API.
 """
 

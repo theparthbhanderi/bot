@@ -1,5 +1,5 @@
 """
-Utility Functions for Telegram Super Bot
+Utility Functions for KINGPARTHH Bot
 Various helper functions for common tasks.
 """
 

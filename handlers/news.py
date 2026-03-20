@@ -1,5 +1,5 @@
 """
-News Handler for Telegram Super Bot
+News Handler for KINGPARTHH Bot
 Handles news search using GNews API.
 """
 

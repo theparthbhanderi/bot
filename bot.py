@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Telegram Super Bot - Main Entry Point
+KINGPARTHH Bot - Main Entry Point
 A comprehensive Telegram bot with AI features, RAG, and more.
 """
 
@@ -23,6 +23,7 @@ from handlers.website import website_handler, extract_text_handler, get_headers_
 from handlers.youtube import youtube_handler, youtube_transcript_handler
 from handlers.code import code_explain_handler, code_review_handler, code_generate_handler, code_help_handler, code_format_handler
 from handlers.ask import ask_handler, add_knowledge_handler, my_knowledge_handler, clear_knowledge_handler, confirm_clear_knowledge_handler, search_knowledge_handler
+from handlers.developer import parth_handler, developer_identity_logic
 
 # Telegram imports
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -48,7 +49,7 @@ logger = logging.getLogger(__name__)
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command."""
     user = update.effective_user
-    welcome_text = f"👋 <b>Welcome to Telegram Super Bot, {user.first_name}!</b>\n\nI am your ultimate AI assistant. What would you like to explore today?"
+    welcome_text = f"👋 <b>Welcome to KINGPARTHH Bot, {user.first_name}!</b>\n\nI am your ultimate AI assistant. What would you like to explore today?"
     
     keyboard = [
         [InlineKeyboardButton("🤖 AI Chat", callback_data="btn_ai"), InlineKeyboardButton("📰 News", callback_data="btn_news")],
@@ -67,7 +68,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command."""
     help_text = """
-🔰 <b>Help - Telegram Super Bot</b>
+🔰 <b>Help - KINGPARTHH Bot</b>
 
 <b>Quick Start:</b>
 • Just send a message to chat with AI
@@ -155,6 +156,7 @@ def main():
             BotCommand("factcheck", "Fact-check a claim or news"),
             BotCommand("youtube", "Summarize a YouTube video"),
             BotCommand("website", "Extract text and summarize a website"),
+            BotCommand("parth", "Show developer profile"),
             BotCommand("clear", "Reset your chat session / memory"),
             BotCommand("help", "See all available commands")
         ]
@@ -168,6 +170,7 @@ def main():
     # Basic commands
     application.add_handler(CommandHandler("start", start_handler))
     application.add_handler(CommandHandler("help", help_handler))
+    application.add_handler(CommandHandler("parth", parth_handler))
     
     # AI commands
     application.add_handler(CommandHandler("ai", ai_chat_handler))
@@ -227,6 +230,7 @@ def main():
     application.add_handler(MessageHandler(filters.Document.PDF, pdf_handler))
     
     # Handle regular text messages with AI
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, developer_identity_logic), group=-1)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_handler))
     
     # Handle inline keyboards
@@ -237,7 +241,7 @@ def main():
     
     # ==================== Start Bot ====================
     
-    logger.info("🤖 Starting Telegram Super Bot...")
+    logger.info("🤖 Starting KINGPARTHH Bot...")
     logger.info("📝 Register all handlers")
     logger.info("✅ Bot is ready!")
     

@@ -1,5 +1,5 @@
 """
-LLM Service for Telegram Super Bot
+LLM Service for KINGPARTHH Bot
 Handles all AI/LLM interactions with OpenAI-compatible APIs.
 """
 

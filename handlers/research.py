@@ -1,5 +1,5 @@
 """
-Research Handler for Telegram Super Bot
+Research Handler for KINGPARTHH Bot
 Handles web research using Tavily API.
 """
 

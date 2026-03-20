@@ -1,5 +1,5 @@
 """
-OCR Handler for Telegram Super Bot
+OCR Handler for KINGPARTHH Bot
 Handles OCR (Optical Character Recognition) using Google Cloud Vision API.
 """
 

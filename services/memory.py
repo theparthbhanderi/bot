@@ -1,5 +1,5 @@
 """
-Memory Service for Telegram Super Bot
+Memory Service for KINGPARTHH Bot
 Manages conversation history and user memory using SQLite.
 """
 

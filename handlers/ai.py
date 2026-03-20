@@ -1,5 +1,5 @@
 """
-AI Handler for Telegram Super Bot
+AI Handler for KINGPARTHH Bot
 Handles AI chat interactions with memory and premium features.
 """
 

@@ -1,5 +1,5 @@
 """
-Code Handler for Telegram Super Bot
+Code Handler for KINGPARTHH Bot
 Handles coding assistant features: explanations, reviews, and help.
 """
 

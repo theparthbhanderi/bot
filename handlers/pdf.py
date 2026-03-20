@@ -1,5 +1,5 @@
 """
-PDF Handler for Telegram Super Bot
+PDF Handler for KINGPARTHH Bot
 Handles PDF document processing and summarization.
 """
 
