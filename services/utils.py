@@ -136,6 +136,9 @@ def md_to_html(text: str) -> str:
     # 4. Restore code blocks with proper escaping
     for i, block in enumerate(code_blocks):
         escaped_block = escape_html(block.strip())
+        # Truncate block if it's individually too long for Telegram's parser
+        if len(escaped_block) > 3800:
+            escaped_block = escaped_block[:3797] + "..."
         text = text.replace(f"___CODE_BLOCK_{i}___", f"<pre>{escaped_block}</pre>")
         
     return text

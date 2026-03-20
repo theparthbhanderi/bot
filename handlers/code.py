@@ -131,6 +131,22 @@ async def code_generate_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ]
 
         response = chat_completion(messages, max_tokens=1500)
+        
+        # Check if message is too long for one Telegram message
+        # Telegram limit is ~4096 chars. HTML tags add to this.
+        if len(response) > 3500:
+            # Send as a file if it's too long
+            import io
+            file_stream = io.BytesIO(response.encode())
+            file_stream.name = "generated_code.txt"
+            
+            await update.message.reply_document(
+                document=file_stream,
+                caption="📄 <b>Code is too long for Telegram.</b>\nI've attached it as a file for you!",
+                parse_mode="HTML"
+            )
+            return
+
         formatted_response = md_to_html(clean_response(response))
 
         await update.message.reply_text(
