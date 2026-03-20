@@ -6,7 +6,7 @@ Handles web research using Tavily API.
 import os
 import html
 import aiohttp
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from services.utils import truncate_text, format_premium_response, get_http_client, clean_response, md_to_html, FOOTER, get_translation_keyboard
 from services.llm_service import async_chat_completion

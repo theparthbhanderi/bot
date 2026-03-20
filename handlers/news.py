@@ -5,7 +5,7 @@ Handles news search using GNews API.
 
 import os
 import html
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from services.utils import truncate_text, escape_markdown, format_premium_response, get_translation_keyboard, FOOTER
 from gnews import GNews
