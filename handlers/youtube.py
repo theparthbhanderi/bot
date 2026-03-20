@@ -8,7 +8,7 @@ import re
 import aiohttp
 from telegram import Update
 from telegram.ext import ContextTypes
-from services.utils import extract_urls, truncate_text, escape_markdown
+from services.utils import extract_urls, truncate_text, format_premium_response, FOOTER
 from services.llm_service import generate_summary
 
 
@@ -18,14 +18,17 @@ async def youtube_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.message.reply_to_message:
             text = update.message.reply_to_message.text
         else:
-            await update.message.reply_text(
-                "🎬 <b>YouTube Summarizer</b>\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "📝 <b>Usage:</b> /youtube [url]\n\n"
-                "💡 <b>Example:</b>\n"
-                "<code>/youtube https://www.youtube.com/watch?v=dQw4w9WgXcQ</code>",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="YouTube Summarizer",
+                short="Get concise summaries of any YouTube video.",
+                points=[
+                    "Usage: /youtube [url]",
+                    "Or reply to a URL with /youtube",
+                    "Works with shorts and long videos"
+                ],
+                tip="Example: /youtube https://youtu.be/..."
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
     else:
         text = ' '.join(context.args)

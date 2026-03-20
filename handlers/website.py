@@ -8,7 +8,7 @@ import aiohttp
 from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import ContextTypes
-from services.utils import validate_url, truncate_text, escape_markdown
+from services.utils import validate_url, truncate_text, format_premium_response, FOOTER
 from services.llm_service import generate_summary
 
 
@@ -18,14 +18,17 @@ async def website_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.message.reply_to_message:
             text = update.message.reply_to_message.text
         else:
-            await update.message.reply_text(
-                "🌐 <b>Website Summarizer</b>\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "📝 <b>Usage:</b> /website [url]\n\n"
-                "💡 <b>Example:</b>\n"
-                "<code>/website https://example.com</code>",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="Website Summarizer",
+                short="Extract and summarize content from any URL.",
+                points=[
+                    "Usage: /website [url]",
+                    "Or reply to a link with /website",
+                    "Cleans clutter and ads"
+                ],
+                tip="Example: /website https://medium.com/..."
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
     else:
         text = ' '.join(context.args)
