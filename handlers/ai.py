@@ -4,10 +4,12 @@ Handles AI chat interactions with memory and premium features.
 """
 
 import os
+import asyncio
 from telegram import Update
 from telegram.ext import ContextTypes
 from services.llm_service import generate_ai_response
 from services.memory import add_user_message, add_bot_message, get_memory_context
+from services.utils import clean_response, md_to_html, truncate_text
 from database import db
 
 
@@ -22,19 +24,17 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     user_id = update.effective_user.id
     user_message = update.message.text
-    
-    # Daily limit check removed by user request
-    
+
     # Show typing indicator
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-    
+
     # Get conversation memory
     memory_context = get_memory_context(user_id)
-    
+
     # Get user's knowledge base context (RAG)
     from services.vector_db import search_knowledge
     knowledge_context = search_knowledge(user_id, user_message)
-    
+
     # Generate AI response
     try:
         response = generate_ai_response(
@@ -43,48 +43,63 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             use_rag=bool(knowledge_context),
             knowledge_context=knowledge_context
         )
-        
+
+        # Clean + convert markdown to HTML
+        response = clean_response(response)
+        response = md_to_html(response)
+        response = truncate_text(response, 4000)
+
         # Save to memory
         add_user_message(user_id, user_message)
         add_bot_message(user_id, response)
-        
+
         # Increment usage
         db.increment_daily_usage(user_id)
-        
+
+        # Small delay for human feel
+        await asyncio.sleep(0.5)
+
         # Send response
         await update.message.reply_text(
             response,
             parse_mode="HTML"
         )
-        
+
     except Exception as e:
-        await update.message.reply_text(f"❌ Error: {str(e)}")
+        await update.message.reply_text(
+            f"⚠️ <b>Error</b>\n\n{str(e)[:200]}",
+            parse_mode="HTML"
+        )
 
 
 async def clear_memory_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Clear user's conversation memory.
-    """
+    """Clear user's conversation memory."""
     user_id = update.effective_user.id
     from services.memory import clear_user_memory
     clear_user_memory(user_id)
-    await update.message.reply_text("✅ Conversation memory cleared!")
+    await update.message.reply_text(
+        "🗑️ <b>Memory Cleared!</b>\n\n"
+        "Your conversation history has been reset.\n"
+        "You're ready for a fresh start! ✨",
+        parse_mode="HTML"
+    )
 
 
 async def usage_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Show user's usage statistics.
-    """
+    """Show user's usage statistics."""
     user_id = update.effective_user.id
     usage = db.get_daily_usage(user_id)
-    
+
     remaining = DAILY_LIMIT - usage['daily_queries'] if not usage['is_premium'] else "∞"
-    
+    premium_badge = "💎 Premium" if usage['is_premium'] else "🆓 Free"
+
     await update.message.reply_text(
-        f"📊 <b>Usage Statistics</b>\n\n"
-        f"• Daily queries: {usage['daily_queries']}/{DAILY_LIMIT}\n"
-        f"• Remaining: {remaining}\n"
-        f"• Total queries: {usage['total_queries']}\n"
-        f"• Premium: {'✅ Yes' if usage['is_premium'] else '❌ No'}",
+        f"📊 <b>Your Usage Stats</b>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🏷️ <b>Plan:</b> {premium_badge}\n"
+        f"📈 <b>Today:</b> {usage['daily_queries']}/{DAILY_LIMIT} queries\n"
+        f"⏳ <b>Remaining:</b> {remaining}\n"
+        f"📊 <b>Total:</b> {usage['total_queries']} all-time queries\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━",
         parse_mode="HTML"
     )

@@ -74,6 +74,54 @@ def chat_completion(
         return f"❌ Error: {str(e)}"
 
 
+# ==================== Premium System Prompt ====================
+
+PREMIUM_PROMPT = """You are KINGPARTHH Bot — a premium AI assistant inside a high-quality Telegram bot.
+
+🎯 CORE RULES:
+• Be CLEAR, CONCISE, and ACCURATE
+• Avoid unnecessary long text
+• Use structured formatting
+• Always give the BEST possible answer
+
+🎨 RESPONSE STYLE:
+• Start with a relevant emoji + bold title
+• Give a short answer first (1–2 lines)
+• Then a clean structured explanation with bullet points
+• Optionally add a 💡 Tip or example
+
+✨ FORMATTING:
+• Use emojis sparingly but effectively
+• Use proper spacing between sections
+• Use <b>bold</b> for headings
+• Use <i>italics</i> for emphasis
+• Use <code>code</code> for technical terms
+• No messy paragraphs — keep it clean
+
+🧠 INTELLIGENCE:
+• Understand user intent deeply
+• If follow-up → use context
+• If unclear → assume best intent
+• Detect user language → reply in same language
+
+⚡ PERFORMANCE:
+• Keep answers optimized (not too long)
+• Avoid repeating same info
+• Focus on delivering maximum value
+
+🧩 SPECIAL BEHAVIOR:
+• coding → structured code block + explanation
+• research → concise + key insights
+• learning → simple language + examples
+• general → direct, premium answer
+
+🚫 AVOID:
+• Long boring paragraphs
+• Generic/robotic answers
+• Unnecessary disclaimers
+• Repeating the question back"""
+
+
 def generate_ai_response(
     user_message: str,
     conversation_history: List[Dict[str, str]] = None,
@@ -97,13 +145,11 @@ def generate_ai_response(
     # Build messages list
     messages = []
     
-    # Build system prompt
+    # Build system prompt — use premium prompt by default
     if system_prompt:
         system_msg = system_prompt
     else:
-        system_msg = """You are a helpful AI assistant in a Telegram bot.
-        Provide clear, concise, and accurate responses.
-        Be friendly and engaging."""
+        system_msg = PREMIUM_PROMPT
     
     # Add RAG context if available
     if use_rag and knowledge_context:
@@ -111,9 +157,9 @@ def generate_ai_response(
     
     messages.append({"role": "system", "content": system_msg})
     
-    # Add conversation history
+    # Add conversation history (trimmed to last 5 for optimization)
     if conversation_history:
-        messages.extend(conversation_history)
+        messages.extend(conversation_history[-5:])
     
     # Add current user message
     messages.append({"role": "user", "content": user_message})

@@ -15,153 +15,156 @@ GOOGLE_CLOUD_VISION_API_KEY = os.getenv('GOOGLE_CLOUD_VISION_API_KEY', '')
 
 
 async def ocr_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Handle OCR requests.
-    User sends an image and the bot extracts text from it.
-    """
-    # Check for photo
+    """Handle OCR requests. User sends an image and the bot extracts text."""
     if not update.message.photo:
         await update.message.reply_text(
-            "📷 <b>OCR - Image to Text</b>\n\n"
-            "Please send me an image and I'll extract the text from it!\n\n"
-            "Supported formats: JPEG, PNG, GIF, BMP, WebP",
+            "📷 <b>OCR — Image to Text</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Send me an image and I'll extract text from it!\n\n"
+            "✅ <b>Supported:</b> JPEG, PNG, GIF, BMP, WebP",
             parse_mode="HTML"
         )
         return
-    
-    # Show typing indicator
+
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-    
+
     try:
-        # Check if API key is configured
         if not GOOGLE_CLOUD_VISION_API_KEY:
             await update.message.reply_text(
-                "⚠️ OCR API is not configured.\n"
-                "Please set GOOGLE_CLOUD_VISION_API_KEY in your environment."
+                "⚠️ <b>Not Configured</b>\n\n"
+                "Set <code>GOOGLE_CLOUD_VISION_API_KEY</code> in your environment.",
+                parse_mode="HTML"
             )
             return
-        
-        # Get the photo
-        photo = update.message.photo[-1]  # Get highest resolution
-        
-        # Download the photo
+
+        photo = update.message.photo[-1]
         photo_file = await context.bot.get_file(photo.file_id)
         photo_bytes = await photo_file.download_as_bytearray()
-        
-        # Process with Google Cloud Vision API
-        import requests
-        
-        api_url = f"https://vision.googleapis.com/v1/images:annotate?key={GOOGLE_CLOUD_VISION_API_KEY}"
-        
-        # Convert to base64
+
+        import aiohttp
         import base64
         image_content = base64.b64encode(bytes(photo_bytes)).decode('utf-8')
-        
+
+        api_url = f"https://vision.googleapis.com/v1/images:annotate?key={GOOGLE_CLOUD_VISION_API_KEY}"
+
         payload = {
             "requests": [{
                 "image": {"content": image_content},
                 "features": [{"type": "TEXT_DETECTION"}]
             }]
         }
-        
-        response = requests.post(api_url, json=payload)
-        data = response.json()
-        
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(api_url, json=payload) as resp:
+                data = await resp.json()
+
         if 'responses' in data and data['responses']:
             text = data['responses'][0].get('text', '')
-            
+
             if text:
-                # Truncate if too long
                 if len(text) > 4000:
                     text = truncate_text(text, 3900)
-                    text += "\n\n<i>(Text truncated - too long to display)</i>"
-                
+                    text += "\n\n<i>(Truncated — text too long)</i>"
+
                 await update.message.reply_text(
-                    f"📷 <b>Extracted Text:</b>\n\n{text}",
+                    f"📷 <b>Extracted Text</b>\n\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    f"{text}",
                     parse_mode="HTML"
                 )
             else:
                 await update.message.reply_text(
-                    "🔍 No text detected in the image."
+                    "🔍 <b>No text detected</b> in this image.",
+                    parse_mode="HTML"
                 )
         else:
             await update.message.reply_text(
-                "🔍 Could not process the image."
+                "⚠️ Could not process the image. Try a clearer image.",
+                parse_mode="HTML"
             )
-    
+
     except Exception as e:
-        await update.message.reply_text(f"❌ Error: {str(e)}")
+        await update.message.reply_text(
+            f"⚠️ <b>Error</b>\n\n{str(e)[:200]}",
+            parse_mode="HTML"
+        )
 
 
 async def ocr_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Handle OCR from image URL.
-    Usage: /ocrurl <image_url>
-    """
+    """Handle OCR from image URL."""
     if not context.args:
         await update.message.reply_text(
             "📷 <b>OCR from URL</b>\n\n"
-            "Usage: /ocrurl <image_url>\n\n"
-            "Example: /ocrurl https://example.com/image.png",
+            "━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "📝 <b>Usage:</b> /ocrurl [image_url]\n\n"
+            "💡 <b>Example:</b>\n"
+            "<code>/ocrurl https://example.com/image.png</code>",
             parse_mode="HTML"
         )
         return
-    
+
     image_url = context.args[0]
-    
-    # Show typing indicator
+
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-    
+
     try:
-        # Check if API key is configured
         if not GOOGLE_CLOUD_VISION_API_KEY:
             await update.message.reply_text(
-                "⚠️ OCR API is not configured.\n"
-                "Please set GOOGLE_CLOUD_VISION_API_KEY in your environment."
+                "⚠️ <b>Not Configured</b>\n\n"
+                "Set <code>GOOGLE_CLOUD_VISION_API_KEY</code> in your environment.",
+                parse_mode="HTML"
             )
             return
-        
-        # Download image
-        import requests
-        response = requests.get(image_url, timeout=30)
-        image_content = response.content
-        
-        # Process with Google Cloud Vision API
+
+        import aiohttp
         import base64
-        image_b64 = base64.b64encode(image_content).decode('utf-8')
-        
-        api_url = f"https://vision.googleapis.com/v1/images:annotate?key={GOOGLE_CLOUD_VISION_API_KEY}"
-        
-        payload = {
-            "requests": [{
-                "image": {"content": image_b64},
-                "features": [{"type": "TEXT_DETECTION"}]
-            }]
-        }
-        
-        api_response = requests.post(api_url, json=payload)
-        data = api_response.json()
-        
+
+        async with aiohttp.ClientSession() as session:
+            # Download image
+            async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                image_content = await resp.read()
+
+            image_b64 = base64.b64encode(image_content).decode('utf-8')
+
+            api_url = f"https://vision.googleapis.com/v1/images:annotate?key={GOOGLE_CLOUD_VISION_API_KEY}"
+
+            payload = {
+                "requests": [{
+                    "image": {"content": image_b64},
+                    "features": [{"type": "TEXT_DETECTION"}]
+                }]
+            }
+
+            async with session.post(api_url, json=payload) as api_resp:
+                data = await api_resp.json()
+
         if 'responses' in data and data['responses']:
             text = data['responses'][0].get('text', '')
-            
+
             if text:
                 if len(text) > 4000:
                     text = truncate_text(text, 3900)
-                    text += "\n\n<i>(Text truncated)</i>"
-                
+                    text += "\n\n<i>(Truncated)</i>"
+
                 await update.message.reply_text(
-                    f"📷 <b>Extracted Text:</b>\n\n{text}",
+                    f"📷 <b>Extracted Text</b>\n\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    f"{text}",
                     parse_mode="HTML"
                 )
             else:
                 await update.message.reply_text(
-                    "🔍 No text detected in the image."
+                    "🔍 <b>No text detected</b> in this image.",
+                    parse_mode="HTML"
                 )
         else:
             await update.message.reply_text(
-                "🔍 Could not process the image."
+                "⚠️ Could not process the image.",
+                parse_mode="HTML"
             )
-    
+
     except Exception as e:
-        await update.message.reply_text(f"❌ Error: {str(e)}")
+        await update.message.reply_text(
+            f"⚠️ <b>Error</b>\n\n{str(e)[:200]}",
+            parse_mode="HTML"
+        )

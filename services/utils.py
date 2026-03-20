@@ -60,6 +60,53 @@ def truncate_text(text: str, max_length: int = 4000) -> str:
     return text[:max_length - 3] + "..."
 
 
+def clean_response(text: str) -> str:
+    """
+    Clean LLM response for premium output.
+    Removes extra whitespace, double spaces, and trailing newlines.
+    
+    Args:
+        text: Raw LLM response
+    
+    Returns:
+        Cleaned text
+    """
+    if not text:
+        return text
+    # Remove excessive whitespace
+    text = text.strip()
+    text = re.sub(r'  +', ' ', text)
+    # Remove excessive newlines (3+ → 2)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text
+
+
+def md_to_html(text: str) -> str:
+    """
+    Convert common Markdown formatting to Telegram HTML.
+    Handles **bold**, *italic*, `code`, and ### headings.
+    
+    Args:
+        text: Text with markdown
+    
+    Returns:
+        Text with Telegram HTML tags
+    """
+    if not text:
+        return text
+    # Convert ### headings to bold
+    text = re.sub(r'^###\s*(.+)$', r'<b>\1</b>', text, flags=re.MULTILINE)
+    # Convert ## headings to bold
+    text = re.sub(r'^##\s*(.+)$', r'<b>\1</b>', text, flags=re.MULTILINE)
+    # Replace **text** with <b>text</b>
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    # Replace *italic* with <i>italic</i>
+    text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
+    # Replace `code` with <code>code</code>
+    text = re.sub(r'`(.+?)`', r'<code>\1</code>', text)
+    return text
+
+
 def format_bytes(bytes_size: int) -> str:
     """
     Format bytes to human-readable string.
