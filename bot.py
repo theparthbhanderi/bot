@@ -341,7 +341,7 @@ def main():
         ]
         await application.bot.set_my_commands(commands)
 
-    application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
+    application = Application.builder().token(BOT_TOKEN).post_init(post_init).concurrent_updates(True).build()
 
     # Handlers
     application.add_handler(CommandHandler("start", start_handler))

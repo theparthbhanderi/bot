@@ -1,125 +1,106 @@
 """
-AI Handler for KINGPARTH Bot
-Handles AI chat interactions with memory and premium features.
+AI Chat Handler for KINGPARTH Bot - OPTIMIZED
+Handles AI interactions with history compression and caching.
 """
 
-import os
-import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from services.llm_service import generate_ai_response
-from services.memory import add_user_message, add_bot_message, get_memory_context
+from services.memory import get_memory_context, add_user_message, add_bot_message
 from services.utils import clean_response, md_to_html, truncate_text, FOOTER
 from database import db
 
-
-# Get premium daily limit from environment
-DAILY_LIMIT = int(os.getenv('PREMIUM_DAILY_LIMIT', '10'))
-
-
 async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Handle AI chat messages with premium UX.
-    Shows "Thinking..." then edits with final answer + quick action buttons.
+    OPTIMIZED AI Chat Handler.
+    - Instant typing action
+    - Compressed history (handled in service)
+    - Result caching (handled in service)
     """
     user_id = update.effective_user.id
-    user_message = update.message.text
+    chat_id = update.effective_chat.id
+    
+    # Get message text
+    if context.args:
+        user_message = " ".join(context.args)
+    else:
+        user_message = update.message.text
 
-    # Show typing indicator
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    if not user_message:
+        await update.message.reply_text("Please provide a message for the AI.")
+        return
 
-    # Send "Thinking..." loading message
-    thinking_msg = await update.message.reply_text(
-        "⚡ <b>Thinking...</b>",
-        parse_mode="HTML"
-    )
+    # 1. Instant Typing Feedback
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
-    # Get conversation memory
-    memory_context = get_memory_context(user_id)
-
-    # Get user's knowledge base context (RAG)
-    from services.vector_db import search_knowledge
-    knowledge_context = search_knowledge(user_id, user_message)
-
-    # Generate AI response
     try:
+        # 2. Get history
+        history = get_memory_context(user_id)
+        
+        # 3. Get Knowledge Base context (RAG)
+        from services.vector_db import search_knowledge
+        knowledge_context = search_knowledge(user_id, user_message)
+
+        # 4. Generate Optimized Response
         response = generate_ai_response(
             user_message=user_message,
-            conversation_history=db.get_conversation_history(user_id),
+            conversation_history=history,
             use_rag=bool(knowledge_context),
             knowledge_context=knowledge_context
         )
 
-        # Clean + convert markdown to HTML
-        response = clean_response(response)
-        response = md_to_html(response)
-        response = truncate_text(response, 3800)
+        # 5. Format response
+        formatted_response = clean_response(response)
+        formatted_response = md_to_html(formatted_response)
 
-        # Add footer
-        response += FOOTER
-
-        # Save to memory
-        add_user_message(user_id, user_message)
-        add_bot_message(user_id, response)
-
-        # Increment usage
-        db.increment_daily_usage(user_id)
-
-        # Quick action buttons
+        # 6. Quick Action Buttons
         keyboard = [
             [
                 InlineKeyboardButton("🔁 Simplify", callback_data="action_simplify"),
                 InlineKeyboardButton("🌐 Translate", callback_data="action_translate"),
-            ],
-            [
-                InlineKeyboardButton("📋 Expand", callback_data="action_expand"),
+                InlineKeyboardButton("📖 Expand", callback_data="action_expand")
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Edit the "Thinking..." message with the actual response
-        await thinking_msg.edit_text(
-            response,
+        # 7. Send Response
+        await update.message.reply_text(
+            truncate_text(formatted_response, 4000) + FOOTER,
             parse_mode="HTML",
             reply_markup=reply_markup
         )
+        
+        # 8. Save to Context & DB
+        add_user_message(user_id, user_message)
+        add_bot_message(user_id, response)
+        db.increment_daily_usage(user_id)
 
     except Exception as e:
-        await thinking_msg.edit_text(
+        await update.message.reply_text(
             f"⚠️ <b>Error</b>\n\n{str(e)[:200]}",
             parse_mode="HTML"
         )
 
 
 async def clear_memory_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Clear user's conversation memory."""
+    """Clear user conversation memory."""
     user_id = update.effective_user.id
-    from services.memory import clear_user_memory
-    clear_user_memory(user_id)
-    await update.message.reply_text(
-        "🗑️ <b>Memory Cleared!</b>\n\n"
-        "Your conversation history has been reset.\n"
-        "You're ready for a fresh start! ✨"
-        + FOOTER,
-        parse_mode="HTML"
-    )
+    from services.memory import clear_memory
+    clear_memory(user_id)
+    await update.message.reply_text("✨ <b>Memory cleared!</b>", parse_mode="HTML")
 
 
 async def usage_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show user's usage statistics."""
+    """Show current daily usage."""
     user_id = update.effective_user.id
     usage = db.get_daily_usage(user_id)
-
-    remaining = DAILY_LIMIT - usage['daily_queries'] if not usage['is_premium'] else "∞"
-    premium_badge = "💎 Premium" if usage['is_premium'] else "🆓 Free"
-
+    limit = int(os.getenv('PREMIUM_DAILY_LIMIT', 50))
+    
     await update.message.reply_text(
-        f"📊 <b>Your Usage Stats</b>\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"🏷️ <b>Plan:</b> {premium_badge}\n"
-        f"📈 <b>Today:</b> {usage['daily_queries']}/{DAILY_LIMIT} queries\n"
-        f"⏳ <b>Remaining:</b> {remaining}\n"
-        f"📊 <b>Total:</b> {usage['total_queries']} all-time queries"
+        f"📊 <b>Daily Usage</b>\n\n"
+        f"Used: {usage}\n"
+        f"Limit: {limit}\n"
+        f"Remaining: {max(0, limit - usage)}"
         + FOOTER,
         parse_mode="HTML"
     )

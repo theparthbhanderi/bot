@@ -122,6 +122,8 @@ PREMIUM_PROMPT = """You are KINGPARTH Bot — a premium AI assistant inside a hi
 • Repeating the question back"""
 
 
+from services.cache_service import cache
+
 def generate_ai_response(
     user_message: str,
     conversation_history: List[Dict[str, str]] = None,
@@ -130,41 +132,51 @@ def generate_ai_response(
     knowledge_context: str = None
 ) -> str:
     """
-    Generate an AI response with optional conversation history and RAG context.
-    
-    Args:
-        user_message: Current user message
-        conversation_history: Previous messages in conversation
-        system_prompt: Custom system prompt
-        use_rag: Whether to use RAG context
-        knowledge_context: Additional context from knowledge base
-    
-    Returns:
-        AI response text
+    OPTIMIZED AI response generator.
+    Includes compression, dynamic tokens, and 900s caching.
     """
-    # Build messages list
+    # 1. Check Cache (Duplicate Query Detection)
+    cache_key = f"{user_message[:100]}:{use_rag}:{bool(knowledge_context)}"
+    cached_res = cache.get("llm", cache_key)
+    if cached_res:
+        return cached_res
+
+    # 2. Dynamic Token Control
+    # Short query -> few tokens, long query -> more tokens
+    query_len = len(user_message.split())
+    if query_len < 10:
+        max_tokens = 400
+    elif query_len < 30:
+        max_tokens = 800
+    else:
+        max_tokens = 2000
+
+    # 3. Prompt Compression (Trim history to last 3 for speed & cost)
     messages = []
     
-    # Build system prompt — use premium prompt by default
-    if system_prompt:
-        system_msg = system_prompt
-    else:
-        system_msg = PREMIUM_PROMPT
-    
-    # Add RAG context if available
+    # Build system prompt
+    system_msg = system_prompt or PREMIUM_PROMPT
     if use_rag and knowledge_context:
-        system_msg += f"\n\nRelevant knowledge base information:\n{knowledge_context}"
+        system_msg += f"\n\nContext:\n{knowledge_context[:1000]}"
     
     messages.append({"role": "system", "content": system_msg})
     
-    # Add conversation history (trimmed to last 5 for optimization)
+    # Trim history (Last 3 messages only)
     if conversation_history:
-        messages.extend(conversation_history[-5:])
+        messages.extend(conversation_history[-3:])
     
-    # Add current user message
+    # Add current message
     messages.append({"role": "user", "content": user_message})
     
-    return chat_completion(messages)
+    # 4. Execute with Timeout
+    response = chat_completion(messages, max_tokens=max_tokens)
+    
+    # 5. Save to Cache (15 min TTL)
+    if response and not response.startswith("❌"):
+        cache.set("llm", cache_key, response, ttl_seconds=900)
+    
+    return response
+
 
 
 def generate_code_explanation(code: str, language: str = "python") -> str:
