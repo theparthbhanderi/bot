@@ -103,25 +103,41 @@ def md_to_html(text: str) -> str:
     """
     Convert common Markdown formatting to Telegram HTML.
     Handles **bold**, *italic*, `code`, and ### headings.
-    
-    Args:
-        text: Text with markdown
-    
-    Returns:
-        Text with Telegram HTML tags
+    Safely escapes raw HTML tags before conversion.
     """
     if not text:
         return text
-    # Convert ### headings to bold
+    
+    # 1. First, separate code blocks to preserve them
+    code_blocks = []
+    def save_code_block(match):
+        code_blocks.append(match.group(1))
+        return f"___CODE_BLOCK_{len(code_blocks)-1}___"
+    
+    # Temporarily hide triple-backtick code blocks
+    text = re.sub(r'```(?:[a-zA-Z]*)\n?([\s\S]*?)```', save_code_block, text)
+    
+    # 2. Escape all remaining raw HTML tags to prevent "Can't parse entities" errors
+    text = escape_html(text)
+    
+    # 3. Convert Markdown to HTML
+    # Headings
     text = re.sub(r'^###\s*(.+)$', r'<b>\1</b>', text, flags=re.MULTILINE)
-    # Convert ## headings to bold
     text = re.sub(r'^##\s*(.+)$', r'<b>\1</b>', text, flags=re.MULTILINE)
-    # Replace **text** with <b>text</b>
+    text = re.sub(r'^#\s*(.+)$', r'<b>\1</b>', text, flags=re.MULTILINE)
+    
+    # Bold & Italic
     text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
-    # Replace *italic* with <i>italic</i>
     text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
-    # Replace `code` with <code>code</code>
+    
+    # Inline code
     text = re.sub(r'`(.+?)`', r'<code>\1</code>', text)
+    
+    # 4. Restore code blocks with proper escaping
+    for i, block in enumerate(code_blocks):
+        escaped_block = escape_html(block.strip())
+        text = text.replace(f"___CODE_BLOCK_{i}___", f"<pre>{escaped_block}</pre>")
+        
     return text
 
 
