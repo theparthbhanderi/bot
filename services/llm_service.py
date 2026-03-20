@@ -72,12 +72,20 @@ async def async_chat_completion(
     """Generate a chat completion using the Async OpenAI client."""
     model = model or LLM_MODEL_NAME
     if system_prompt:
-        messages = [{"role": "system", "content": system_prompt}] + messages
+        messages = [{"role": "system", "content": system_prompt}] + (messages if messages else [])
+    
+    # Validation: Ensure all messages are objects with 'role' and 'content'
+    validated_messages = []
+    for msg in messages:
+        if isinstance(msg, dict) and 'role' in msg and 'content' in msg:
+            validated_messages.append(msg)
+        elif isinstance(msg, str):
+            validated_messages.append({"role": "user", "content": msg})
     
     try:
         response = await async_client.chat.completions.create(
             model=model,
-            messages=messages,
+            messages=validated_messages,
             temperature=temperature,
             max_tokens=max_tokens,
             timeout=30.0
