@@ -68,7 +68,14 @@ class VectorStore:
                     data = pickle.load(f)
                     self.documents = data.get('documents', [])
                     self.metadata = data.get('metadata', [])
-                    # Note: FAISS index can't be pickled directly in all cases
+                    
+                    # Reload FAISS index if FAISS is available
+                    if FAISS_AVAILABLE and 'embeddings' in data:
+                        embeddings = np.array(data['embeddings']).astype('float32')
+                        if embeddings.size > 0:
+                            self.index = faiss.IndexFlatL2(embeddings.shape[1])
+                            self.index.add(embeddings)
+                    
                     print(f"✅ Loaded {len(self.documents)} documents from index")
             except Exception as e:
                 print(f"⚠️ Could not load vector index: {e}")
@@ -76,10 +83,18 @@ class VectorStore:
     def _save_index(self):
         """Save vector index to disk."""
         try:
+            # Reconstruct embeddings from index if possible
+            embeddings = None
+            if self.index is not None and self.index.ntotal > 0:
+                # Flat index allows reconstructing
+                embeddings = faiss.rev_swig_ptr(self.index.get_xb(), self.index.ntotal * self.index.d)
+                embeddings = embeddings.reshape(self.index.ntotal, self.index.d)
+
             data = {
                 'documents': self.documents,
                 'metadata': self.metadata,
-                'model_name': self.model_name
+                'model_name': self.model_name,
+                'embeddings': embeddings
             }
             with open(VECTOR_DB_PATH, 'wb') as f:
                 pickle.dump(data, f)

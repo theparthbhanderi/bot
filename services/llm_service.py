@@ -1,32 +1,33 @@
 """
 LLM Service for KINGPARTH Bot
-Handles all AI/LLM interactions with OpenAI-compatible APIs.
+Handles all AI/LLM interactions with Async OpenAI focus.
 """
 
 import os
 import json
+import asyncio
 from typing import List, Dict, Any, Optional
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 
 # Get environment variables
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
 LLM_MODEL_NAME = os.getenv('LLM_MODEL_NAME', 'gpt-3.5-turbo')
 
-# Initialize OpenAI client
+# Initialize OpenAI clients
 client = OpenAI(
+    api_key=OPENAI_API_KEY,
+    base_url=OPENAI_BASE_URL
+)
+
+async_client = AsyncOpenAI(
     api_key=OPENAI_API_KEY,
     base_url=OPENAI_BASE_URL
 )
 
 
 def get_available_models() -> List[str]:
-    """
-    Get list of available models from the API.
-    
-    Returns:
-        List of model names
-    """
+    """Get list of available models from the API."""
     try:
         models = client.models.list()
         return [model.id for model in models.data]
@@ -42,22 +43,8 @@ def chat_completion(
     max_tokens: int = 1000,
     system_prompt: str = None
 ) -> str:
-    """
-    Generate a chat completion using the LLM.
-    
-    Args:
-        messages: List of message dictionaries with 'role' and 'content'
-        model: Model name (defaults to LLM_MODEL_NAME)
-        temperature: Controls randomness (0.0 to 1.0)
-        max_tokens: Maximum tokens in response
-        system_prompt: Optional system prompt override
-    
-    Returns:
-        Generated response text
-    """
+    """Sync chat completion."""
     model = model or LLM_MODEL_NAME
-    
-    # Add system prompt if provided
     if system_prompt:
         messages = [{"role": "system", "content": system_prompt}] + messages
     
@@ -74,245 +61,129 @@ def chat_completion(
         return f"❌ Error: {str(e)}"
 
 
+async def async_chat_completion(
+    messages: List[Dict[str, str]],
+    model: str = None,
+    temperature: float = 0.7,
+    max_tokens: int = 1000,
+    system_prompt: str = None
+) -> str:
+    """Generate a chat completion using the Async OpenAI client."""
+    model = model or LLM_MODEL_NAME
+    if system_prompt:
+        messages = [{"role": "system", "content": system_prompt}] + messages
+    
+    try:
+        response = await async_client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=30.0
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"Error in async chat completion: {e}")
+        return f"❌ Error: {str(e)}"
+
+
+async def async_chat_completion_stream(
+    messages: List[Dict[str, str]],
+    model: str = None,
+    temperature: float = 0.7,
+    max_tokens: int = 1000,
+    system_prompt: str = None
+):
+    """Generate a streaming chat completion."""
+    model = model or LLM_MODEL_NAME
+    if system_prompt:
+        messages = [{"role": "system", "content": system_prompt}] + messages
+    
+    try:
+        response = await async_client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=True
+        )
+        async for chunk in response:
+            if chunk.choices and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+    except Exception as e:
+        print(f"Error in streaming chat completion: {e}")
+        yield f"❌ Error: {str(e)}"
+
+
 # ==================== Premium System Prompt ====================
 
 PREMIUM_PROMPT = """You are KINGPARTH Bot — a premium AI assistant inside a high-quality Telegram bot.
-
 🎯 CORE RULES:
 • Be CLEAR, CONCISE, and ACCURATE
-• Avoid unnecessary long text
 • Use structured formatting
-• Always give the BEST possible answer
-
-🎨 RESPONSE STYLE:
-• Start with a relevant emoji + bold title
-• Give a short answer first (1–2 lines)
-• Then a clean structured explanation with bullet points
-• Optionally add a 💡 Tip or example
-
-✨ FORMATTING:
-• Use emojis sparingly but effectively
-• Use proper spacing between sections
-• Use <b>bold</b> for headings
-• Use <i>italics</i> for emphasis
-• Use <code>code</code> for technical terms
-• No messy paragraphs — keep it clean
-
-🧠 INTELLIGENCE:
-• Understand user intent deeply
-• If follow-up → use context
-• If unclear → assume best intent
-• Detect user language → reply in same language
-
-⚡ PERFORMANCE:
-• Keep answers optimized (not too long)
-• Avoid repeating same info
-• Focus on delivering maximum value
-
-🧩 SPECIAL BEHAVIOR:
-• coding → structured code block + explanation
-• research → concise + key insights
-• learning → simple language + examples
-• general → direct, premium answer
-
-🚫 AVOID:
-• Long boring paragraphs
-• Generic/robotic answers
-• Unnecessary disclaimers
-• Repeating the question back"""
-
+• Start with relevant emoji + Bold Title
+• Match user's language (Hindi/English)
+🚫 AVOID: Long paragraphs, robotic answers."""
 
 from services.cache_service import cache
 
-def generate_ai_response(
+async def generate_ai_response(
     user_message: str,
     conversation_history: List[Dict[str, str]] = None,
     system_prompt: str = None,
     use_rag: bool = False,
-    knowledge_context: str = None
+    knowledge_context: str = None,
+    use_semantic_cache: bool = True
 ) -> str:
-    """
-    OPTIMIZED AI response generator.
-    Includes compression, dynamic tokens, and 900s caching.
-    """
-    # 1. Check Cache (Duplicate Query Detection)
+    """ULTRA-OPTIMIZED ASYNC AI response generator."""
+    # 1. Micro-optimization: Simple queries
+    clean_query = user_message.lower().strip()
+    if clean_query in ["hi", "hello", "hey"]: return "👋 Hello! How can I help you сегодня?"
+    if clean_query in ["who are you", "what is your name"]: return "🤖 I am KINGPARTH Bot, your ultra-fast AI assistant!"
+
+    # 2. Multi-Layer Cache Check
     cache_key = f"{user_message[:100]}:{use_rag}:{bool(knowledge_context)}"
     cached_res = cache.get("llm", cache_key)
-    if cached_res:
-        return cached_res
-
-    # 2. Dynamic Token Control
-    # Short query -> few tokens, long query -> more tokens
-    query_len = len(user_message.split())
-    if query_len < 10:
-        max_tokens = 400
-    elif query_len < 30:
-        max_tokens = 800
-    else:
-        max_tokens = 2000
-
-    # 3. Prompt Compression (Trim history to last 3 for speed & cost)
-    messages = []
+    if cached_res: return cached_res
     
-    # Build system prompt
+    if use_semantic_cache:
+        semantic_res = cache.get_semantic("llm", user_message)
+        if semantic_res: return semantic_res
+
+    # 3. Dynamic Optimization
+    query_len = len(user_message.split())
+    max_tokens = 300 if query_len < 15 else (800 if query_len < 50 else 1500)
+    model = "gpt-3.5-turbo" if query_len < 15 else LLM_MODEL_NAME
+
+    # 4. Prompt Compression
+    messages = []
     system_msg = system_prompt or PREMIUM_PROMPT
     if use_rag and knowledge_context:
-        system_msg += f"\n\nContext:\n{knowledge_context[:1000]}"
-    
+        system_msg += f"\n\nContext Snippet:\n{knowledge_context[:800]}"
     messages.append({"role": "system", "content": system_msg})
-    
-    # Trim history (Last 3 messages only)
     if conversation_history:
-        messages.extend(conversation_history[-3:])
-    
-    # Add current message
+        messages.extend(conversation_history[-2:]) # Only last 2 for extreme speed
     messages.append({"role": "user", "content": user_message})
     
-    # 4. Execute with Timeout
-    response = chat_completion(messages, max_tokens=max_tokens)
+    # 5. Execute Async
+    response = await async_chat_completion(messages, model=model, max_tokens=max_tokens)
     
-    # 5. Save to Cache (15 min TTL)
+    # 6. Save Cache
     if response and not response.startswith("❌"):
-        cache.set("llm", cache_key, response, ttl_seconds=900)
+        cache.set("llm", cache_key, response, ttl_seconds=3600, use_semantic=use_semantic_cache)
     
     return response
 
 
+def generate_code_explanation(code, language="python"):
+    system_prompt = f"Explain this {language} code concisely."
+    return chat_completion([{"role": "user", "content": code}], system_prompt=system_prompt)
 
-def generate_code_explanation(code: str, language: str = "python") -> str:
-    """
-    Generate an explanation for code.
-    
-    Args:
-        code: Code to explain
-        language: Programming language
-    
-    Returns:
-        Code explanation
-    """
-    system_prompt = f"""You are a coding expert. Explain the following {language} code 
-    in a clear, beginner-friendly way. Break down each part and explain what it does."""
-    
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"Explain this {language} code:\n\n```{language}\n{code}\n```"}
-    ]
-    
-    return chat_completion(messages, max_tokens=2000)
+def generate_summary(text, max_length=200):
+    return chat_completion([{"role": "user", "content": f"Summarize: {text}"}], max_tokens=max_length//2)
 
+def translate_text(text, target_language):
+    return chat_completion([{"role": "user", "content": f"Translate to {target_language}: {text}"}])
 
-def generate_code_review(code: str, language: str = "python") -> str:
-    """
-    Generate a code review.
-    
-    Args:
-        code: Code to review
-        language: Programming language
-    
-    Returns:
-        Code review with suggestions
-    """
-    system_prompt = f"""You are a senior developer. Review the following {language} code 
-    for bugs, performance issues, security concerns, and best practices.
-    Provide specific suggestions for improvement."""
-    
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"Review this {language} code:\n\n```{language}\n{code}\n```"}
-    ]
-    
-    return chat_completion(messages, max_tokens=2000)
-
-
-def generate_summary(text: str, max_length: int = 200) -> str:
-    """
-    Generate a summary of text.
-    
-    Args:
-        text: Text to summarize
-        max_length: Maximum length of summary
-    
-    Returns:
-        Summary text
-    """
-    system_prompt = f"""Summarize the following text in no more than {max_length} characters.
-    Focus on the key points and main ideas."""
-    
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"Summarize this:\n\n{text}"}
-    ]
-    
-    return chat_completion(messages, max_tokens=max_length // 4)
-
-
-def translate_text(text: str, target_language: str) -> str:
-    """
-    Translate text to target language.
-    
-    Args:
-        text: Text to translate
-        target_language: Target language name
-    
-    Returns:
-        Translated text
-    """
-    system_prompt = f"""Translate the following text to {target_language}.
-    Provide only the translation, no explanations."""
-    
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": text}
-    ]
-    
-    return chat_completion(messages)
-
-
-def generate_creative_content(prompt: str, content_type: str = "story") -> str:
-    """
-    Generate creative content.
-    
-    Args:
-        prompt: Content prompt
-        content_type: Type of content (story, poem, joke, etc.)
-    
-    Returns:
-        Generated content
-    """
-    system_prompt = f"""Generate a creative {content_type} based on the following prompt.
-    Be creative and engaging!"""
-    
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": prompt}
-    ]
-    
-    return chat_completion(messages, max_tokens=1500)
-
-
-def answer_question(question: str, context: str = None) -> str:
-    """
-    Answer a question, optionally with context.
-    
-    Args:
-        question: Question to answer
-        context: Optional context to help answer
-    
-    Returns:
-        Answer text
-    """
-    if context:
-        system_prompt = f"""Answer the question based on the following context.
-        If the context doesn't contain enough information, say so.
-        
-        Context:
-        {context}"""
-    else:
-        system_prompt = "Answer the following question accurately and concisely."
-    
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": question}
-    ]
-    
-    return chat_completion(messages, max_tokens=1000)
+def answer_question(question, context=None):
+    return chat_completion([{"role": "user", "content": question}], system_prompt=f"Context: {context}" if context else None)

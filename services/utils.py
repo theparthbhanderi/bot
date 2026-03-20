@@ -7,9 +7,27 @@ import os
 import re
 import json
 import requests
+import httpx
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from urllib.parse import urlparse, quote
+
+# Global Async HTTP Client with Connection Pooling
+# Optimized for high throughput and low latency
+_http_client = None
+
+def get_http_client():
+    global _http_client
+    if _http_client is None:
+        limits = httpx.Limits(max_keepalive_connections=20, max_connections=100)
+        _http_client = httpx.AsyncClient(limits=limits, timeout=30.0)
+    return _http_client
+
+async def close_http_client():
+    global _http_client
+    if _http_client:
+        await _http_client.aclose()
+        _http_client = None
 
 
 def validate_url(url: str) -> bool:
