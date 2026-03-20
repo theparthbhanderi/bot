@@ -1,5 +1,5 @@
 """
-News Handler for KINGPARTHH Bot
+News Handler for KINGPARTH Bot
 Handles news search using GNews API.
 """
 

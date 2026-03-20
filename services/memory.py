@@ -1,5 +1,5 @@
 """
-Memory Service for KINGPARTHH Bot
+Memory Service for KINGPARTH Bot
 Manages conversation history and user memory using SQLite.
 """
 

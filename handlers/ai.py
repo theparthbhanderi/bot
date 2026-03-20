@@ -1,5 +1,5 @@
 """
-AI Handler for KINGPARTHH Bot
+AI Handler for KINGPARTH Bot
 Handles AI chat interactions with memory and premium features.
 """
 

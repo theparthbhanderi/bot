@@ -1,5 +1,5 @@
 """
-Fact Check Handler for KINGPARTHH Bot
+Fact Check Handler for KINGPARTH Bot
 Handles fact checking using Google Fact Check API.
 """
 

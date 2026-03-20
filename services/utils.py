@@ -1,5 +1,5 @@
 """
-Utility Functions for KINGPARTHH Bot
+Utility Functions for KINGPARTH Bot
 Various helper functions for common tasks.
 """
 

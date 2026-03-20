@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KINGPARTHH Bot - Main Entry Point
+KINGPARTH Bot - Main Entry Point
 A comprehensive Telegram bot with AI features, RAG, and more.
 """
 
@@ -56,7 +56,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command with premium app-like UI."""
     user = update.effective_user
     welcome_text = (
-        f"✨ <b>Welcome to KINGPARTHH Bot</b>\n\n"
+        f"✨ <b>Welcome to KINGPARTH Bot</b>\n\n"
         f"Hey {user.first_name}! 👋\n"
         f"Your all-in-one AI assistant 🚀\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -95,7 +95,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command."""
     help_text = (
-        "📖 <b>KINGPARTHH Bot — Command Guide</b>\n\n"
+        "📖 <b>KINGPARTH Bot — Command Guide</b>\n\n"
         "━━━━━━━━━━━━━━━━━━━━━\n\n"
         "🤖 <b>AI Chat</b>\n"
         "• /ai [message] — Chat with AI\n"
@@ -441,7 +441,7 @@ def main():
 
     # ==================== Start Bot ====================
 
-    logger.info("🤖 Starting KINGPARTHH Bot...")
+    logger.info("🤖 Starting KINGPARTH Bot...")
     logger.info("📝 All handlers registered")
     logger.info("✅ Bot is ready!")
 

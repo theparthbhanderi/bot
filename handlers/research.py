@@ -1,5 +1,5 @@
 """
-Research Handler for KINGPARTHH Bot
+Research Handler for KINGPARTH Bot
 Handles web research using Tavily API.
 """
 

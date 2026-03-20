@@ -1,5 +1,5 @@
 """
-Database module for KINGPARTHH Bot
+Database module for KINGPARTH Bot
 Handles SQLite database operations for memory, premium, and user management.
 """
 

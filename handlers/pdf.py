@@ -1,5 +1,5 @@
 """
-PDF Handler for KINGPARTHH Bot
+PDF Handler for KINGPARTH Bot
 Handles PDF document processing and summarization.
 """
 

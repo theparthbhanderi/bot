@@ -1,5 +1,5 @@
 """
-LLM Service for KINGPARTHH Bot
+LLM Service for KINGPARTH Bot
 Handles all AI/LLM interactions with OpenAI-compatible APIs.
 """
 
@@ -76,7 +76,7 @@ def chat_completion(
 
 # ==================== Premium System Prompt ====================
 
-PREMIUM_PROMPT = """You are KINGPARTHH Bot — a premium AI assistant inside a high-quality Telegram bot.
+PREMIUM_PROMPT = """You are KINGPARTH Bot — a premium AI assistant inside a high-quality Telegram bot.
 
 🎯 CORE RULES:
 • Be CLEAR, CONCISE, and ACCURATE

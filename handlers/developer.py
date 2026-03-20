@@ -1,5 +1,5 @@
 """
-Developer Handler for KINGPARTHH Bot
+Developer Handler for KINGPARTH Bot
 Handles developer identity and branding features.
 """
 
@@ -22,7 +22,7 @@ async def parth_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "💻 <b>GitHub:</b> https://github.com/theparthbhanderi\n"
         "🐦 <b>X:</b> https://x.com/parthbhanderii\n\n"
         "━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "💎 <i>Creator of KINGPARTHH Bot</i>"
+        "💎 <i>Creator of KINGPARTH Bot</i>"
     )
 
     keyboard = [

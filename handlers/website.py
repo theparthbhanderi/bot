@@ -1,5 +1,5 @@
 """
-Website Handler for KINGPARTHH Bot
+Website Handler for KINGPARTH Bot
 Handles website content extraction and summarization.
 """
 

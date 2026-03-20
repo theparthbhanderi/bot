@@ -1,5 +1,5 @@
 """
-Code Handler for KINGPARTHH Bot
+Code Handler for KINGPARTH Bot
 Handles coding assistant features: explanations, reviews, and help.
 """
 

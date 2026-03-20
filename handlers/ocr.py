@@ -1,5 +1,5 @@
 """
-OCR Handler for KINGPARTHH Bot
+OCR Handler for KINGPARTH Bot
 Handles OCR (Optical Character Recognition) using Google Cloud Vision API.
 """
 

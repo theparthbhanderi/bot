@@ -1,5 +1,5 @@
 """
-YouTube Handler for KINGPARTHH Bot
+YouTube Handler for KINGPARTH Bot
 Handles YouTube video transcription and summarization.
 """
 

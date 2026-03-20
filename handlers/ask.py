@@ -1,5 +1,5 @@
 """
-Ask Handler for KINGPARTHH Bot
+Ask Handler for KINGPARTH Bot
 Handles RAG (Retrieval-Augmented Generation) question answering.
 """
 
