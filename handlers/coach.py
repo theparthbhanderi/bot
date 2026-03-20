@@ -5,7 +5,7 @@ Handles goal setting, daily tasks, and progress tracking.
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from services.utils import format_premium_response, FOOTER
+from services.utils import format_premium_response, FOOTER, get_translation_keyboard
 from services.llm_service import async_chat_completion
 from database import db
 import json
@@ -102,7 +102,10 @@ async def set_goal_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             points=[f"Target: {plan_data['title']}"] + [f"• {t}" for p, t in enumerate(plan_data['tasks'])],
             tip="Check your daily tasks with /tasks"
         )
-        await update.message.reply_text(success_text, parse_mode="HTML")
+        context.user_data["last_response"] = success_text
+        
+        keyboard = get_translation_keyboard().inline_keyboard
+        await update.message.reply_text(success_text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
 
     except Exception as e:
         logger.error(f"Error in set_goal: {e}")

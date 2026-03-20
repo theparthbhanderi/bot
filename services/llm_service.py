@@ -200,6 +200,12 @@ def generate_code_review(code, language="python"):
 def generate_summary(text, max_length=200):
     return chat_completion([{"role": "user", "content": f"Summarize: {text}"}], max_tokens=max_length//2)
 
+async def async_translate_text(text: str, target_language: str) -> str:
+    """Async translation using LLM to maintain formatting."""
+    prompt = f"Translate the following text to {target_language}. MAINTAIN the exact same HTML formatting (like <b>, •, etc.). Only return the translated text.\n\nText:\n{text}"
+    messages = [{"role": "user", "content": prompt}]
+    return await async_chat_completion(messages, max_tokens=2000)
+
 def translate_text(text, target_language):
     return chat_completion([{"role": "user", "content": f"Translate to {target_language}: {text}"}])
 

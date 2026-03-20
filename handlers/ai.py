@@ -6,9 +6,8 @@ Handles AI interactions with specular execution and background tasking.
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from services.llm_service import generate_ai_response
-from services.memory import get_memory_context, add_user_message, add_bot_message
-from services.utils import clean_response, md_to_html, truncate_text, FOOTER, format_premium_response
+from services.utils import clean_response, md_to_html, truncate_text, FOOTER, format_premium_response, get_translation_keyboard
+from services.llm_service import generate_ai_response, async_translate_text
 from database import db
 
 async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -17,6 +16,7 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     - Speculative Execution
     - Background Tasking
     - Multi-layer caching
+    - Translation Support
     """
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
@@ -29,6 +29,7 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # 2. Context Preparedness
+        from services.memory import get_memory_context
         history = get_memory_context(user_id)
         
         from services.vector_db import search_knowledge
@@ -44,17 +45,24 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # 4. Ultra-Fast Formatting
-        # The response from generate_ai_response is already following the new UI structure 
-        # via the updated PREMIUM_PROMPT, so we just need to ensure it's HTML safe.
         formatted_response = md_to_html(clean_response(response))
         final_text = truncate_text(formatted_response, 4000) + FOOTER
+        
+        # Save for translation
+        context.user_data["last_response"] = final_text
 
-        # 5. Quick Actions
-        keyboard = [[
-            InlineKeyboardButton("🔁 Simplify", callback_data="action_simplify"),
-            InlineKeyboardButton("🌐 Translate", callback_data="action_translate"),
-            InlineKeyboardButton("📖 Expand", callback_data="action_expand")
-        ]]
+        # 5. Keyboard with Translation
+        keyboard = [
+            [
+                InlineKeyboardButton("🔁 Simplify", callback_data="action_simplify"),
+                InlineKeyboardButton("📖 Expand", callback_data="action_expand")
+            ],
+            [
+                InlineKeyboardButton("🇮🇳 Hindi", callback_data="translate_hi"),
+                InlineKeyboardButton("🇮🇳 Gujarati", callback_data="translate_gu"),
+                InlineKeyboardButton("🇺🇸 English", callback_data="translate_en")
+            ]
+        ]
         
         # 6. Immediate Response
         await update.message.reply_text(
@@ -69,9 +77,35 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"⚠️ <b>Error</b>\n\n{str(e)[:200]}", parse_mode="HTML")
 
+async def translation_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handles translation button clicks."""
+    query = update.callback_query
+    await query.answer("Translating... 🔄")
+    
+    lang_code = query.data.split('_')[1]
+    target_lang = "Hindi" if lang_code == 'hi' else ("Gujarati" if lang_code == 'gu' else "English")
+    
+    original_text = context.user_data.get("last_response")
+    if not original_text:
+        await query.edit_message_text("⚠️ Original text not found. Please try again.", parse_mode="HTML")
+        return
+
+    # Use LLM for translation to keep HTML tags intact
+    translated_text = await async_translate_text(original_text, target_lang)
+    
+    # Update keyboard (to keep functionality)
+    keyboard = query.message.reply_markup.inline_keyboard
+    
+    await query.edit_message_text(
+        truncate_text(translated_text, 4000),
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
 
 async def save_context_and_usage(user_id, user_message, response):
     """Internal helper to save data without blocking user UI."""
+    from services.memory import add_user_message, add_bot_message
     add_user_message(user_id, user_message)
     add_bot_message(user_id, response)
     db.increment_daily_usage(user_id)

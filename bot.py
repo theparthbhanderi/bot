@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import handlers
-from handlers.ai import ai_chat_handler, clear_memory_handler, usage_handler
+from handlers.ai import ai_chat_handler, clear_memory_handler, usage_handler, translation_callback_handler
 from handlers.news import news_handler, top_news_handler, news_by_topic_handler
 from handlers.factcheck import fact_check_handler
 from handlers.ocr import ocr_handler, ocr_url_handler
@@ -415,6 +415,7 @@ def main():
     application.add_handler(CallbackQueryHandler(set_goal_handler, pattern="^coach_set_goal$"))
     application.add_handler(CallbackQueryHandler(tasks_handler, pattern="^coach_tasks$"))
     application.add_handler(CallbackQueryHandler(complete_task_callback, pattern="^coach_done_"))
+    application.add_handler(CallbackQueryHandler(translation_callback_handler, pattern="^translate_"))
     application.add_handler(CallbackQueryHandler(start_handler, pattern="^btn_main$"))
 
     # Message handlers

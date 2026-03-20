@@ -125,6 +125,19 @@ def md_to_html(text: str) -> str:
     return text
 
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+def get_translation_keyboard() -> InlineKeyboardMarkup:
+    """Returns the Hindi | Gujarati | English inline keyboard."""
+    keyboard = [
+        [
+            InlineKeyboardButton("🇮🇳 Hindi", callback_data="translate_hi"),
+            InlineKeyboardButton("🇮🇳 Gujarati", callback_data="translate_gu"),
+            InlineKeyboardButton("🇺🇸 English", callback_data="translate_en")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 # ==================== Premium UI Helpers ====================
 
 FOOTER = "\n━━━━━━━━━━━━━━━\n🚀 <i>Powered by Parth</i>"

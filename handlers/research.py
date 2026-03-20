@@ -8,7 +8,7 @@ import html
 import aiohttp
 from telegram import Update
 from telegram.ext import ContextTypes
-from services.utils import truncate_text, format_premium_response, get_http_client, clean_response, md_to_html, FOOTER
+from services.utils import truncate_text, format_premium_response, get_http_client, clean_response, md_to_html, FOOTER, get_translation_keyboard
 from services.llm_service import async_chat_completion
 import asyncio
 
@@ -87,8 +87,10 @@ async def research_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             short=f"Found {len(points)} relevant sources for your query.",
             points=points
         )
-
-        await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
+        context.user_data["last_response"] = response
+        
+        keyboard = get_translation_keyboard().inline_keyboard
+        await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(keyboard))
 
     except Exception as e:
         await update.message.reply_text(
@@ -192,8 +194,10 @@ async def deep_research_handler(update: Update, context: ContextTypes.DEFAULT_TY
             points=sources,
             tip="Research includes real-time web data."
         )
-
-        await msg.edit_text(truncate_text(final_response, 4000), parse_mode="HTML", disable_web_page_preview=True)
+        context.user_data["last_response"] = final_response
+        
+        keyboard = get_translation_keyboard().inline_keyboard
+        await msg.edit_text(truncate_text(final_response, 4000), parse_mode="HTML", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(keyboard))
 
     except Exception as e:
         await msg.edit_text(

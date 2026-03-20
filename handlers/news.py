@@ -7,7 +7,7 @@ import os
 import html
 from telegram import Update
 from telegram.ext import ContextTypes
-from services.utils import truncate_text, escape_markdown, format_premium_response
+from services.utils import truncate_text, escape_markdown, format_premium_response, get_translation_keyboard, FOOTER
 from gnews import GNews
 
 
@@ -59,8 +59,10 @@ async def news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             short=f"Here are the top 5 articles related to {query}.",
             points=points
         )
-
-        await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
+        context.user_data["last_response"] = response
+        
+        keyboard = get_translation_keyboard().inline_keyboard
+        await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(keyboard))
 
     except Exception as e:
         await update.message.reply_text(
@@ -97,8 +99,10 @@ async def top_news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             short="Here are the top 5 global headlines for today.",
             points=points
         )
-
-        await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
+        context.user_data["last_response"] = response
+        
+        keyboard = get_translation_keyboard().inline_keyboard
+        await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(keyboard))
 
     except Exception as e:
         await update.message.reply_text(
@@ -150,8 +154,10 @@ async def news_by_topic_handler(update: Update, context: ContextTypes.DEFAULT_TY
             short=f"Latest {topic} headlines for you.",
             points=points
         )
-
-        await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
+        context.user_data["last_response"] = response
+        
+        keyboard = get_translation_keyboard().inline_keyboard
+        await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(keyboard))
 
     except Exception as e:
         await update.message.reply_text(
