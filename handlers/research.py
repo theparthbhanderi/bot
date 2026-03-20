@@ -133,8 +133,9 @@ async def deep_research_handler(update: Update, context: ContextTypes.DEFAULT_TY
             "api_key": TAVILY_API_KEY,
             "query": query,
             "search_depth": "comprehensive",
-            "max_results": 8,
-            "include_answer": True
+            "max_results": 10,
+            "include_answer": True,
+            "include_raw_content": True
         }
 
         client = get_http_client()
@@ -148,15 +149,25 @@ async def deep_research_handler(update: Update, context: ContextTypes.DEFAULT_TY
         if 'results' not in data or not data['results']:
             # Fallback to pure LLM if search fails
             await msg.edit_text("✨ <b>No direct web data found. Using AI Knowledge...</b>", parse_mode="HTML")
-            prompt = f"The user asked for deep research on: '{query}'. Web search returned no recent results. Provide a comprehensive answer based on your general knowledge. Start by mentioning that this is based on your internal knowledge base."
-            answer = await async_chat_completion([{"role": "user", "content": prompt}], max_tokens=1000)
+            prompt = f"""The user asked for deep research on: '{query}'. 
+            Web search returned no results. Provide a comprehensive answer based on your general knowledge.
             
-            final_response = format_premium_response(
-                title=f"AI Insight: {query.title()}",
-                short=md_to_html(clean_response(answer)),
-                tip="Web search was inconclusive, showing AI knowledge instead."
-            )
-            await msg.edit_text(truncate_text(final_response, 4000), parse_mode="HTML")
+            Follow this EXACT UI structure:
+            🧠 <b>AI Insight: {query.title()}</b>
+            
+            ⚡ <b>Quick Answer</b>
+            {{Brief high-level summary}}
+            
+            📖 <b>Explanation</b>
+            • {{Key detail 1}}
+            • {{Key detail 2}}
+            • {{Key detail 3}}
+            
+            💡 <b>Tip</b>
+            {{Helpful advice}}"""
+            
+            answer = await async_chat_completion([{"role": "user", "content": prompt}], max_tokens=1000)
+            await msg.edit_text(truncate_text(md_to_html(clean_response(answer)) + FOOTER, 4000), parse_mode="HTML")
             return
 
         # 2. Synthesize answer with LLM if Tavily didn't provide one
