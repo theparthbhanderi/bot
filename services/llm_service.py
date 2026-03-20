@@ -13,7 +13,7 @@ from services.cache_service import cache
 # Get environment variables
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
-LLM_MODEL_NAME = os.getenv('LLM_MODEL_NAME', 'gpt-3.5-turbo')
+LLM_MODEL_NAME = os.getenv('LLM_MODEL_NAME', 'gpt-3.5-turbo-0125')
 
 # Initialize OpenAI clients
 client = OpenAI(
@@ -25,6 +25,13 @@ async_client = AsyncOpenAI(
     api_key=OPENAI_API_KEY,
     base_url=OPENAI_BASE_URL
 )
+
+def _get_fast_model() -> str:
+    """Helper to get a fast model fallback."""
+    # If using custom provider/base_url, LLM_MODEL_NAME is usually safer
+    if "openai.com" not in OPENAI_BASE_URL:
+        return LLM_MODEL_NAME
+    return "gpt-3.5-turbo-0125"
 
 
 def get_available_models() -> List[str]:
@@ -175,7 +182,8 @@ async def generate_ai_response(
     # 3. Dynamic Optimization
     query_len = len(user_message.split())
     max_tokens = 300 if query_len < 15 else (800 if query_len < 50 else 1500)
-    model = "gpt-3.5-turbo" if query_len < 15 else LLM_MODEL_NAME
+    # Use helper for fast model selection
+    model = _get_fast_model() if query_len < 15 else LLM_MODEL_NAME
 
     # 4. Prompt Compression
     messages = []
