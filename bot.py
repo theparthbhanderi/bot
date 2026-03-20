@@ -25,13 +25,14 @@ from handlers.code import code_explain_handler, code_review_handler, code_genera
 from handlers.ask import ask_handler, add_knowledge_handler, my_knowledge_handler, clear_knowledge_handler, confirm_clear_knowledge_handler, search_knowledge_handler
 
 # Telegram imports
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
     filters,
     ContextTypes,
+    CallbackQueryHandler,
 )
 
 # Configure logging
@@ -47,56 +48,20 @@ logger = logging.getLogger(__name__)
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command."""
     user = update.effective_user
-    welcome_text = f"""
-👋 <b>Welcome to Telegram Super Bot, {user.first_name}!</b>
-
-I am your AI-powered assistant with many features:
-
-<b>🤖 AI Chat</b>
-/ai [message] - Chat with AI
-/clear - Clear conversation memory
-/usage - Check your daily usage
-
-<b>📰 News</b>
-/news [topic] - Search news
-/topnews - Get top news
-/topic [topic] - News by topic
-
-<b>🔍 Research</b>
-/research [topic] - Web research
-/deepsearch [topic] - In-depth research
-
-<b>🔎 Fact Check</b>
-/factcheck [claim] - Verify facts
-
-<b>📷 OCR (Image to Text)</b>
-Send me an image - Extract text from images
-
-<b>📄 PDF Processing</b>
-Send me a PDF - Summarize PDF documents
-
-<b>🌐 Website Tools</b>
-/website [url] - Summarize websites
-/extract [url] - Extract website text
-
-<b>🎬 YouTube</b>
-/youtube [url] - Summarize YouTube videos
-
-<b>💻 Coding Assistant</b>
-/explain [code] - Explain code
-/review [code] - Review code
-/code [description] - Generate code
-/help [topic] - Get coding help
-
-<b>📚 RAG/Knowledge Base</b>
-/addkb [content] - Add to knowledge
-/ask [question] - Ask using knowledge
-/mykb - View your knowledge
-/searchkb [query] - Search knowledge
-
-Send me a message to start chatting with AI!
-"""
-    await update.message.reply_text(welcome_text, parse_mode="HTML")
+    welcome_text = f"👋 <b>Welcome to Telegram Super Bot, {user.first_name}!</b>\n\nI am your ultimate AI assistant. What would you like to explore today?"
+    
+    keyboard = [
+        [InlineKeyboardButton("🤖 AI Chat", callback_data="btn_ai"), InlineKeyboardButton("📰 News", callback_data="btn_news")],
+        [InlineKeyboardButton("🔍 Research", callback_data="btn_research"), InlineKeyboardButton("🔎 Fact Check", callback_data="btn_fact")],
+        [InlineKeyboardButton("🛠️ Tools (Web/YT/PDF)", callback_data="btn_tools")],
+        [InlineKeyboardButton("💻 Coding", callback_data="btn_code"), InlineKeyboardButton("📚 Knowledge Hub", callback_data="btn_kb")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    if update.message:
+        await update.message.reply_text(welcome_text, parse_mode="HTML", reply_markup=reply_markup)
+    elif update.callback_query:
+        await update.callback_query.edit_message_text(welcome_text, parse_mode="HTML", reply_markup=reply_markup)
 
 
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -137,6 +102,33 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular messages (echo with AI)."""
     # This allows users to just send messages to chat with AI
     await ai_chat_handler(update, context)
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle inline keyboard button clicks."""
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    
+    if data == "btn_main":
+        await start_handler(update, context)
+        return
+        
+    back_button = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="btn_main")]]
+    reply_markup = InlineKeyboardMarkup(back_button)
+        
+    category_texts = {
+        "btn_ai": "<b>🤖 AI Chat Commands</b>\n\n/ai [message] - Chat with AI\n/clear - Clear conversation memory\n/usage - Check your daily limit",
+        "btn_news": "<b>📰 News Commands</b>\n\n/news [topic] - Search news for a topic\n/topnews - Get top global headlines\n/topic [topic] - Get news by category",
+        "btn_research": "<b>🔍 Deep Research</b>\n\n/research [topic] - General web research\n/deepsearch [topic] - Detailed, in-depth research",
+        "btn_fact": "<b>🔎 Fact Check</b>\n\n/factcheck [claim] - Check if a claim or news is real or fake",
+        "btn_tools": "<b>🛠️ Utilities</b>\n\n/website [url] - Summarize any website\n/extract [url] - Extract text from a site\n/youtube [url] - Summarize a YouTube video\n\n<i>Also: Send a PDF to summarize it, or an Image to extract Text!</i>",
+        "btn_code": "<b>💻 Coding Assistant</b>\n\n/explain [code] - Explain code snippets\n/review [code] - Review and improve code\n/code [description] - Generate new code\n/help [topic] - Get programming help",
+        "btn_kb": "<b>📚 RAG/Knowledge Hub</b>\n\n/addkb [text] - Save information to your memory\n/ask [question] - Ask questions based on your saved info\n/mykb - View everything you saved\n/searchkb [query] - Search through your memory"
+    }
+    
+    text = category_texts.get(data, "Unknown option selected.")
+    await query.edit_message_text(text, parse_mode="HTML", reply_markup=reply_markup)
 
 
 # ==================== Main Function ====================
@@ -236,6 +228,9 @@ def main():
     
     # Handle regular text messages with AI
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_handler))
+    
+    # Handle inline keyboards
+    application.add_handler(CallbackQueryHandler(button_handler))
     
     # Error handler
     application.add_error_handler(error_handler)
