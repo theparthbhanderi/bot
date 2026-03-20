@@ -8,6 +8,7 @@ import json
 import asyncio
 from typing import List, Dict, Any, Optional
 from openai import OpenAI, AsyncOpenAI
+from services.cache_service import cache
 
 # Get environment variables
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
@@ -125,8 +126,6 @@ PREMIUM_PROMPT = """You are KINGPARTH Bot — a premium AI assistant inside a hi
 • Match user's language (Hindi/English)
 🚫 AVOID: Long paragraphs, robotic answers."""
 
-from services.cache_service import cache
-
 async def generate_ai_response(
     user_message: str,
     conversation_history: List[Dict[str, str]] = None,
@@ -138,7 +137,7 @@ async def generate_ai_response(
     """ULTRA-OPTIMIZED ASYNC AI response generator."""
     # 1. Micro-optimization: Simple queries
     clean_query = user_message.lower().strip()
-    if clean_query in ["hi", "hello", "hey"]: return "👋 Hello! How can I help you сегодня?"
+    if clean_query in ["hi", "hello", "hey"]: return "👋 Hello! How can I help you today?"
     if clean_query in ["who are you", "what is your name"]: return "🤖 I am KINGPARTH Bot, your ultra-fast AI assistant!"
 
     # 2. Multi-Layer Cache Check
@@ -177,6 +176,10 @@ async def generate_ai_response(
 
 def generate_code_explanation(code, language="python"):
     system_prompt = f"Explain this {language} code concisely."
+    return chat_completion([{"role": "user", "content": code}], system_prompt=system_prompt)
+
+def generate_code_review(code, language="python"):
+    system_prompt = f"Review this {language} code for issues and improvements."
     return chat_completion([{"role": "user", "content": code}], system_prompt=system_prompt)
 
 def generate_summary(text, max_length=200):
