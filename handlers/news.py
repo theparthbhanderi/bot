@@ -4,6 +4,7 @@ Handles news search using GNews API.
 """
 
 import os
+import html
 from telegram import Update
 from telegram.ext import ContextTypes
 from services.utils import truncate_text, escape_markdown
@@ -47,8 +48,8 @@ async def news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = f"📰 <b>News: {query}</b>\n\n"
         
         for i, article in enumerate(news[:5], 1):  # Limit to 5 results
-            title = escape_markdown(article.get('title', 'No title'))
-            publisher = escape_markdown(article.get('publisher', {}).get('title', 'Unknown'))
+            title = html.escape(article.get('title', 'No title'))
+            publisher = html.escape(article.get('publisher', {}).get('title', 'Unknown'))
             published = article.get('published date', 'Unknown date')
             url = article.get('url', '')
             
@@ -83,8 +84,8 @@ async def top_news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = "📰 <b>Top News</b>\n\n"
         
         for i, article in enumerate(news[:5], 1):
-            title = escape_markdown(article.get('title', 'No title'))
-            publisher = escape_markdown(article.get('publisher', {}).get('title', 'Unknown'))
+            title = html.escape(article.get('title', 'No title'))
+            publisher = html.escape(article.get('publisher', {}).get('title', 'Unknown'))
             published = article.get('published date', 'Unknown date')
             url = article.get('url', '')
             
@@ -130,8 +131,8 @@ async def news_by_topic_handler(update: Update, context: ContextTypes.DEFAULT_TY
         response = f"📰 <b>Topic: {topic.title()}</b>\n\n"
         
         for i, article in enumerate(news[:5], 1):
-            title = escape_markdown(article.get('title', 'No title'))
-            publisher = escape_markdown(article.get('publisher', {}).get('title', 'Unknown'))
+            title = html.escape(article.get('title', 'No title'))
+            publisher = html.escape(article.get('publisher', {}).get('title', 'Unknown'))
             url = article.get('url', '')
             
             response += f"{i}. <b>{title}</b>\n"

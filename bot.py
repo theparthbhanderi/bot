@@ -53,21 +53,21 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 I am your AI-powered assistant with many features:
 
 <b>🤖 AI Chat</b>
-/ai <message> - Chat with AI
+/ai [message] - Chat with AI
 /clear - Clear conversation memory
 /usage - Check your daily usage
 
 <b>📰 News</b>
-/news <topic> - Search news
+/news [topic] - Search news
 /topnews - Get top news
-/topic <topic> - News by topic
+/topic [topic] - News by topic
 
 <b>🔍 Research</b>
-/research <topic> - Web research
-/deepsearch <topic> - In-depth research
+/research [topic] - Web research
+/deepsearch [topic] - In-depth research
 
 <b>🔎 Fact Check</b>
-/factcheck <claim> - Verify facts
+/factcheck [claim] - Verify facts
 
 <b>📷 OCR (Image to Text)</b>
 Send me an image - Extract text from images
@@ -76,23 +76,23 @@ Send me an image - Extract text from images
 Send me a PDF - Summarize PDF documents
 
 <b>🌐 Website Tools</b>
-/website <url> - Summarize websites
-/extract <url> - Extract website text
+/website [url] - Summarize websites
+/extract [url] - Extract website text
 
 <b>🎬 YouTube</b>
-/youtube <url> - Summarize YouTube videos
+/youtube [url] - Summarize YouTube videos
 
 <b>💻 Coding Assistant</b>
-/explain <code> - Explain code
-/review <code> - Review code
-/code <description> - Generate code
-/help <topic> - Get coding help
+/explain [code] - Explain code
+/review [code] - Review code
+/code [description] - Generate code
+/help [topic] - Get coding help
 
 <b>📚 RAG/Knowledge Base</b>
-/addkb <content> - Add to knowledge
-/ask <question> - Ask using knowledge
+/addkb [content] - Add to knowledge
+/ask [question] - Ask using knowledge
 /mykb - View your knowledge
-/searchkb <query> - Search knowledge
+/searchkb [query] - Search knowledge
 
 Send me a message to start chatting with AI!
 """
@@ -151,9 +151,25 @@ def main():
         logger.error("❌ BOT_TOKEN not found in environment!")
         logger.info("Please set BOT_TOKEN in .env file or environment")
         sys.exit(1)
+        
+    async def post_init(application: Application):
+        from telegram import BotCommand
+        commands = [
+            BotCommand("start", "Start the AI assistant"),
+            BotCommand("ai", "Chat with AI"),
+            BotCommand("news", "Search for news on a topic"),
+            BotCommand("topnews", "Get the top daily headlines"),
+            BotCommand("research", "Conduct deep web research"),
+            BotCommand("factcheck", "Fact-check a claim or news"),
+            BotCommand("youtube", "Summarize a YouTube video"),
+            BotCommand("website", "Extract text and summarize a website"),
+            BotCommand("clear", "Reset your chat session / memory"),
+            BotCommand("help", "See all available commands")
+        ]
+        await application.bot.set_my_commands(commands)
     
     # Create application
-    application = Application.builder().token(BOT_TOKEN).build()
+    application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
     
     # ==================== Command Handlers ====================
     
