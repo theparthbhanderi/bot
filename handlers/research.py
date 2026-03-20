@@ -8,7 +8,9 @@ import html
 import aiohttp
 from telegram import Update
 from telegram.ext import ContextTypes
-from services.utils import truncate_text, format_premium_response
+from services.utils import truncate_text, format_premium_response, get_http_client, clean_response, md_to_html, FOOTER
+from services.llm_service import async_chat_completion
+import asyncio
 
 
 # Tavily API configuration
@@ -92,80 +94,89 @@ async def research_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def deep_research_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle deep research requests."""
+    """Handle deep research requests with LLM synthesis."""
     if not context.args:
-        await update.message.reply_text(
-            "🔬 <b>Deep Research</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "📝 <b>Usage:</b> /deepsearch [topic]\n\n"
-            "💡 Provides comprehensive, in-depth analysis.",
-            parse_mode="HTML"
+        text = format_premium_response(
+            title="Deep Research",
+            short="Comprehensive analysis on any topic.",
+            points=[
+                "Usage: /deepsearch [topic]",
+                "Example: /deepsearch AI trends 2025",
+                "Synthesizes multiple sources"
+            ]
         )
+        await update.message.reply_text(text, parse_mode="HTML")
         return
 
     query = ' '.join(context.args)
+    chat_id = update.effective_chat.id
 
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    msg = await update.message.reply_text("🔍 <b>Starting Deep Research...</b>", parse_mode="HTML")
 
     try:
         if not TAVILY_API_KEY:
-            await update.message.reply_text(
-                "⚠️ <b>Not Configured</b>\n\n"
-                "Set <code>TAVILY_API_KEY</code> in your environment.",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="Not Configured",
+                short="Research API key is missing.",
+                tip="Set TAVILY_API_KEY in your environment."
             )
+            await msg.edit_text(text, parse_mode="HTML")
             return
 
+        # 1. Fetch search results
         payload = {
             "api_key": TAVILY_API_KEY,
             "query": query,
             "search_depth": "comprehensive",
-            "max_results": 10,
-            "include_answer": True,
-            "include_raw_content": False
+            "max_results": 8,
+            "include_answer": True
         }
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://api.tavily.com/search",
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=aiohttp.ClientTimeout(total=60)
-            ) as resp:
-                data = await resp.json()
+        client = get_http_client()
+        resp = await client.post(
+            "https://api.tavily.com/search",
+            json=payload,
+            timeout=30.0
+        )
+        data = resp.json()
 
-        response_text = (
-            f"🔬 <b>Deep Research: {html.escape(query)}</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+        if 'results' not in data or not data['results']:
+            text = format_premium_response(
+                title="No Results",
+                short=f"No deep research found for '{query}'.",
+                tip="Try a different or more specific query."
+            )
+            await msg.edit_text(text, parse_mode="HTML")
+            return
+
+        # 2. Synthesize answer with LLM if Tavily didn't provide one
+        answer = data.get('answer', '')
+        if not answer:
+            await msg.edit_text("✨ <b>Synthesizing results...</b>", parse_mode="HTML")
+            context_text = "\n\n".join([f"Source: {r['url']}\nContent: {r['content']}" for r in data['results'][:5]])
+            prompt = f"Synthesize a comprehensive answer for the query: '{query}' based on these research results:\n\n{context_text}\n\nProvide a detailed but concise response in HTML format (use <b> for emphasis)."
+            answer = await async_chat_completion([{"role": "user", "content": prompt}], max_tokens=1000)
+            answer = clean_response(answer)
+
+        # 3. Format final response
+        sources = []
+        for i, result in enumerate(data['results'][:5], 1):
+            title = html.escape(result.get('title', 'No title'))
+            url = result.get('url', '')
+            sources.append(f"<b><a href='{url}'>{title}</a></b>")
+
+        final_response = format_premium_response(
+            title=f"Deep Research: {query.title()}",
+            short=md_to_html(answer),
+            points=sources,
+            tip="Research includes real-time web data."
         )
 
-        # Include AI answer if available
-        if 'answer' in data and data['answer']:
-            response_text += f"⚡ <b>Summary:</b>\n{html.escape(data['answer'])}\n\n"
-            response_text += "━━━━━━━━━━━━━━━━━━━━━\n\n"
-
-        if 'results' in data and data['results']:
-            response_text += "📚 <b>Sources:</b>\n\n"
-
-            for i, result in enumerate(data['results'][:8], 1):
-                title = html.escape(result.get('title', 'No title'))
-                content = html.escape(result.get('content', 'No content'))
-                url = result.get('url', '')
-
-                if len(content) > 150:
-                    content = content[:147] + "..."
-
-                response_text += f"{i}. <b><a href='{url}'>{title}</a></b>\n"
-                response_text += f"<i>{content}</i>\n\n"
-
-        await update.message.reply_text(
-            truncate_text(response_text, 4000),
-            parse_mode="HTML",
-            disable_web_page_preview=True
-        )
+        await msg.edit_text(truncate_text(final_response, 4000), parse_mode="HTML", disable_web_page_preview=True)
 
     except Exception as e:
-        await update.message.reply_text(
+        await msg.edit_text(
             f"⚠️ <b>Error</b>\n\n{str(e)[:200]}",
             parse_mode="HTML"
         )

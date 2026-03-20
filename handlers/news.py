@@ -77,34 +77,32 @@ async def top_news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         news = gnews_client.get_top_news()
 
         if not news:
-            await update.message.reply_text(
-                "📰 <b>No news available at the moment.</b>",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="No News",
+                short="I couldn't fetch any top news at the moment.",
+                tip="Try again in a few minutes."
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
 
-        response = (
-            "📰 <b>Top Headlines</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━\n\n"
-        )
-
-        for i, article in enumerate(news[:5], 1):
+        points = []
+        for article in news[:5]:
             title = html.escape(article.get('title', 'No title'))
             publisher = html.escape(article.get('publisher', {}).get('title', 'Unknown'))
-            published = article.get('published date', '')
             url = article.get('url', '')
+            points.append(f"<b><a href='{url}'>{title}</a></b>\n  📰 <i>{publisher}</i>")
 
-            response += f"{i}. <b><a href='{url}'>{title}</a></b>\n"
-            response += f"   📰 <i>{publisher}</i>"
-            if published:
-                response += f" • 🕐 {published}"
-            response += "\n\n"
+        response = format_premium_response(
+            title="Top Headlines",
+            short="Here are the top 5 global headlines for today.",
+            points=points
+        )
 
         await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
 
     except Exception as e:
         await update.message.reply_text(
-            f"⚠️ <b>Error</b>\n\nCouldn't fetch news: {str(e)[:150]}",
+            f"⚠️ <b>Error</b>\n\nCouldn't fetch top news: {str(e)[:150]}",
             parse_mode="HTML"
         )
 
@@ -112,49 +110,51 @@ async def top_news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def news_by_topic_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle news by topic requests."""
     if not context.args:
-        await update.message.reply_text(
-            "📰 <b>News by Topic</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "📝 <b>Usage:</b> /topic [category]\n\n"
-            "💡 <b>Example:</b>\n"
-            "• <code>/topic technology</code>\n"
-            "• <code>/topic sports</code>",
-            parse_mode="HTML"
+        text = format_premium_response(
+            title="News by Topic",
+            short="Get news based on specific categories.",
+            points=[
+                "WORLD, NATION, BUSINESS",
+                "TECHNOLOGY, ENTERTAINMENT",
+                "SPORTS, SCIENCE, HEALTH"
+            ],
+            tip="Example: /topic TECHNOLOGY"
         )
+        await update.message.reply_text(text, parse_mode="HTML")
         return
 
-    topic = ' '.join(context.args)
-
+    topic = context.args[0].upper()
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
         news = gnews_client.get_news_by_topic(topic)
 
         if not news:
-            await update.message.reply_text(
-                f"🔍 <b>No Results</b>\n\n"
-                f"No news found for topic: <i>{html.escape(topic)}</i>",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="Topic Not Found",
+                short=f"I couldn't find any news for the topic '{topic}'.",
+                tip="Make sure you use a valid topic name."
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
 
-        response = (
-            f"📰 <b>Topic: {html.escape(topic.title())}</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-        )
-
-        for i, article in enumerate(news[:5], 1):
+        points = []
+        for article in news[:5]:
             title = html.escape(article.get('title', 'No title'))
             publisher = html.escape(article.get('publisher', {}).get('title', 'Unknown'))
             url = article.get('url', '')
+            points.append(f"<b><a href='{url}'>{title}</a></b>\n  📰 <i>{publisher}</i>")
 
-            response += f"{i}. <b><a href='{url}'>{title}</a></b>\n"
-            response += f"   📰 <i>{publisher}</i>\n\n"
+        response = format_premium_response(
+            title=f"News: {topic}",
+            short=f"Latest {topic} headlines for you.",
+            points=points
+        )
 
         await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
 
     except Exception as e:
         await update.message.reply_text(
-            f"⚠️ <b>Error</b>\n\nCouldn't fetch news: {str(e)[:150]}",
+            f"⚠️ <b>Error</b>\n\nCouldn't fetch news for '{topic}': {str(e)[:150]}",
             parse_mode="HTML"
         )

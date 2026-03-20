@@ -7,7 +7,7 @@ import os
 import html
 import aiohttp
 from telegram import Update
-from telegram.ext import ContextTypes
+from services.utils import truncate_text, format_premium_response
 
 
 # Google Fact Check API configuration
@@ -18,15 +18,16 @@ FACT_CHECK_URL = "https://factchecktools.googleapis.com/v1/claims:search"
 async def fact_check_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle fact check requests."""
     if not context.args:
-        await update.message.reply_text(
-            "🔎 <b>Fact Check</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "📝 <b>Usage:</b> /factcheck [claim]\n\n"
-            "💡 <b>Example:</b>\n"
-            "• <code>/factcheck The earth is flat</code>\n"
-            "• <code>/factcheck 5G causes COVID</code>",
-            parse_mode="HTML"
+        text = format_premium_response(
+            title="Fact Checker",
+            short="Verify any claim using Google Fact Check API.",
+            points=[
+                "Usage: /factcheck [claim]",
+                "Example: /factcheck The earth is flat",
+                "Fetches top-rated verdicts"
+            ]
         )
+        await update.message.reply_text(text, parse_mode="HTML")
         return
 
     claim = ' '.join(context.args)
@@ -35,11 +36,12 @@ async def fact_check_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     try:
         if not GOOGLE_FACT_CHECK_API_KEY:
-            await update.message.reply_text(
-                "⚠️ <b>Not Configured</b>\n\n"
-                "Set <code>GOOGLE_FACT_CHECK_API_KEY</code> in your environment.",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="Not Configured",
+                short="Fact Check API key is missing.",
+                tip="Set GOOGLE_FACT_CHECK_API_KEY in your environment."
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
 
         # Use aiohttp for async request
@@ -54,24 +56,16 @@ async def fact_check_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 data = await resp.json()
 
         if 'claims' not in data or not data['claims']:
-            await update.message.reply_text(
-                f"🔎 <b>Fact Check Result</b>\n\n"
-                f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"📋 <b>Claim:</b> \"{html.escape(claim)}\"\n\n"
-                f"❓ No fact-check results found.\n\n"
-                f"💡 <i>Try rephrasing or use a more specific claim.</i>",
-                parse_mode="HTML"
+            text = format_premium_response(
+                title="Fact Check Result",
+                short=f"No fact-check results found for \"{html.escape(claim)}\".",
+                tip="Try rephrasing or use a more specific claim."
             )
+            await update.message.reply_text(text, parse_mode="HTML")
             return
 
         claim_data = data['claims'][0]
         claim_text = claim_data.get('text', claim)
-
-        response_text = (
-            f"🔎 <b>Fact Check Result</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"📋 <b>Claim:</b> \"{html.escape(claim_text)}\"\n\n"
-        )
 
         if 'claimReviews' in claim_data and claim_data['claimReviews']:
             review = claim_data['claimReviews'][0]
@@ -94,15 +88,25 @@ async def fact_check_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 emoji = "❓"
                 verdict = rating.upper()
 
-            response_text += (
-                f"{emoji} <b>Verdict:</b> {verdict}\n"
-                f"📊 <b>Rating:</b> <a href='{url}'>{html.escape(rating)}</a>\n"
+            points = [
+                f"{emoji} <b>Verdict:</b> {verdict}",
+                f"📊 <b>Rating:</b> <a href='{url}'>{html.escape(rating)}</a>",
                 f"📰 <b>Source:</b> <i>{html.escape(publisher)}</i>"
-            )
-        else:
-            response_text += "❓ No expert reviews available for this claim."
+            ]
 
-        await update.message.reply_text(response_text, parse_mode="HTML")
+            response = format_premium_response(
+                title="Fact Check Result",
+                short=f"Claim: \"{html.escape(claim_text)}\"",
+                points=points
+            )
+            await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
+        else:
+            text = format_premium_response(
+                title="No Reviews",
+                short=f"I found the claim \"{html.escape(claim_text)}\", but there are no expert reviews available.",
+                tip="Try searching for a different claim."
+            )
+            await update.message.reply_text(text, parse_mode="HTML")
 
     except Exception as e:
         await update.message.reply_text(
