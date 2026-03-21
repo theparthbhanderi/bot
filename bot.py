@@ -24,6 +24,7 @@ from handlers.website import website_handler, extract_text_handler, get_headers_
 from handlers.youtube import youtube_handler, youtube_transcript_handler
 from handlers.code import code_explain_handler, code_review_handler, code_generate_handler, code_help_handler, code_format_handler
 from handlers.ask import ask_handler, add_knowledge_handler, my_knowledge_handler, clear_knowledge_handler, confirm_clear_knowledge_handler, search_knowledge_handler
+from handlers.image import image_handler
 from handlers.developer import parth_handler, developer_identity_logic
 from handlers.agent import agent_mode_activation_handler, agent_handler
 from handlers.coach import coach_handler, set_goal_handler, tasks_handler, complete_task_callback
@@ -347,6 +348,7 @@ def main():
             BotCommand("topnews", "📰 Top headlines"),
             BotCommand("research", "🔍 Web research"),
             BotCommand("deepsearch", "🧠 Deep analysis"),
+            BotCommand("image", "🎨 Generate AI image"),
             BotCommand("factcheck", "🔎 Fact-check"),
             BotCommand("youtube", "🎬 YT summary"),
             BotCommand("website", "🌐 Web summary"),
@@ -383,6 +385,7 @@ def main():
     application.add_handler(CommandHandler("website", website_handler))
     application.add_handler(CommandHandler("extract", extract_text_handler))
     application.add_handler(CommandHandler("headers", get_headers_handler))
+    application.add_handler(CommandHandler("image", image_handler))
 
     # OCR & PDF handlers
     application.add_handler(CommandHandler("ocrurl", ocr_url_handler))
