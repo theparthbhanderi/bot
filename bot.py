@@ -28,8 +28,11 @@ from handlers.image import image_handler
 from handlers.developer import parth_handler, developer_identity_logic
 from handlers.agent import agent_mode_activation_handler, agent_handler
 from handlers.coach import coach_handler, set_goal_handler, tasks_handler, complete_task_callback
+from handlers.example_router import example_smart_handler
 
-# Services
+# Core UI & Utilities
+from core.ui import build_main_menu, create_card
+from core.animations import ProgressiveMessage
 from services.utils import detect_mode, FOOTER
 from services.llm_service import generate_ai_response, chat_completion
 from services.utils import clean_response, md_to_html, truncate_text
@@ -62,40 +65,18 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Always clear mode on start
     context.user_data["mode"] = "chat"
     
-    welcome_text = (
-        f"✨ <b>Welcome to KINGPARTH Bot</b>\n\n"
+    welcome_content = (
         f"Hey {user.first_name}! 👋\n"
-        f"Your all-in-one AI assistant 🚀\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"Choose what you want to do 👇"
     )
+    
+    welcome_text = create_card(
+        title="Welcome to KINGPARTH Bot",
+        content=welcome_content,
+        tip="Your all-in-one AI assistant 🚀"
+    )
 
-    keyboard = [
-        [
-            InlineKeyboardButton("🧑‍🎓 Personal AI Coach", callback_data="coach_main"),
-        ],
-        [
-            InlineKeyboardButton("🤖 Agent Mode (Deep)", callback_data="agent_mode"),
-            InlineKeyboardButton("🤖 AI Chat", callback_data="btn_ai")
-        ],
-        [
-            InlineKeyboardButton("🧠 Research", callback_data="btn_research"),
-            InlineKeyboardButton("📰 News", callback_data="btn_news")
-        ],
-        [
-            InlineKeyboardButton("🎬 YouTube", callback_data="btn_tools"),
-            InlineKeyboardButton("🔎 Fact Check", callback_data="btn_fact")
-        ],
-        [
-            InlineKeyboardButton("🖼️ OCR / PDF", callback_data="btn_ocr"),
-            InlineKeyboardButton("💻 Coding", callback_data="btn_code")
-        ],
-        [
-            InlineKeyboardButton("📚 Knowledge Hub", callback_data="btn_kb"),
-            InlineKeyboardButton("👨‍💻 Developer", callback_data="btn_dev")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = build_main_menu()
 
     if update.message:
         await update.message.reply_text(welcome_text, parse_mode="HTML", reply_markup=reply_markup)
@@ -165,6 +146,13 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await agent_handler(update, context)
         return
         
+    if mode_state == "image":
+        from handlers.image import image_handler
+        context.args = text.split()
+        await image_handler(update, context)
+        context.user_data["mode"] = "chat" # Reset mode so they don't get stuck
+        return
+        
     # Auto-mode detection for chat mode
     mode = detect_mode(text)
 
@@ -215,8 +203,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Quick action buttons
     if data.startswith("action_"):
+        if data == "action_upscale":
+            from handlers.image import upscale_callback_handler
+            await upscale_callback_handler(update, context)
+            return
         await handle_quick_action(update, context, data)
         return
+
+    # Set mode dynamically for direct chat actions
+    if data == "btn_image":
+        context.user_data["mode"] = "image"
+    elif data == "btn_ai":
+        context.user_data["mode"] = "chat"
+    elif data == "agent_mode":
+        context.user_data["mode"] = "agent"
 
     # Back button for all categories
     back_button = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="btn_main")]]
@@ -248,6 +248,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🔎 <b>Fact Check</b>\n\n"
             "━━━━━━━━━━━━━━━━━━━━━\n\n"
             "• /factcheck [claim] — Verify any claim\n"
+        ),
+        "btn_image": (
+            "🎨 <b>Image Generation</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Please type your prompt below to generate an image.\n\n"
+            "💡 <i>Example: A beautiful sunset and flying superhero in the sky</i>"
         ),
         "btn_tools": (
             "🎬 <b>YouTube & Web</b>\n\n"
@@ -426,6 +432,9 @@ def main():
     application.add_handler(MessageHandler(filters.Document.PDF, pdf_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, developer_identity_logic), group=-1)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_handler))
+    
+    # Example Handler logic
+    application.add_handler(CommandHandler("example", example_smart_handler))
 
     # Button handler
     application.add_handler(CallbackQueryHandler(button_handler))
