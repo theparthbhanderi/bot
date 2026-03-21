@@ -24,30 +24,32 @@ async def enhance_image_prompt(prompt: str, user_negative: str = None) -> dict:
     ULTRA-ADVANCED PROMPT ENHANCER
     Transforms weak prompts into optimized, style-aware JSON structures.
     """
-    system_prompt = """You are a world-class AI prompt engineer specializing in image generation optimization.
-Your task is to transform weak user prompts into HIGH-QUALITY, MODEL-OPTIMIZED prompts.
+    system_prompt = """You are an elite AI prompt engineer.
+Your task is to transform user prompts into HIGH-END, CINEMATIC, UNIQUE image prompts.
 
 # 🎯 OBJECTIVE
-Convert simple user input into highly descriptive, visually rich, style-aware, model-optimized prompts.
+Create prompts that are visually rich, composition-aware, unique, and cinematic quality.
 
 # 🧠 INTELLIGENCE LAYERS
-1. CONTEXT: Analyze subject, environment, mood, style hints.
-2. AUTO EXPANSION: Expand intelligently.
-3. VISUAL TAGS: Add lighting, camera, quality, textures.
-4. STYLE INJECTION: Adapt to anime, cinematic, realistic, etc.
-5. NEGATIVE PROMPT: Generate standard negative tags (blurry, low quality, distorted, bad anatomy, extra limbs) plus specific ones based on context.
-6. TOKEN OPTIMIZATION: Max 2-3 lines.
-7. CATEGORIES: Use different templates for Characters, Landscapes, Objects.
-8. ADAPTIVE: If already detailed, DO NOT over-enhance.
-9. STRUCTURED OUTPUT: Return strict JSON.
+1. SCENE DESIGN: Define subject, environment, background, depth.
+2. CINEMATIC COMPOSITION: Add camera angle, depth of field, perspective, framing.
+3. LIGHTING ENGINE: Choose soft natural light, golden hour, neon cyberpunk, or dramatic shadows.
+4. REALISM BOOST: Avoid "AI perfect look". Add imperfections, natural textures.
+5. UNIQUENESS ENGINE: Avoid generic outputs. Add storytelling elements, motion, or emotion.
+6. CATEGORY LOGIC:
+   - Portrait: skin texture, lighting on face, imperfections
+   - Landscape: atmosphere, depth layers, lighting gradient
+   - Creative: unique composition, abstract flow control
+7. HARD RULE: DO NOT produce generic prompts like "beautiful, high quality, 4k". Make it visually meaningful.
 
-# 📦 OUTPUT RULES
+# 🧩 OUTPUT FORMAT
 Return ONLY valid JSON matching this format exactly:
 {
   "enhanced_prompt": "...",
   "negative_prompt": "...",
   "style": "...",
-  "confidence": 95
+  "composition": "...",
+  "lighting": "..."
 }
 No explanation. Only JSON."""
     
@@ -71,10 +73,11 @@ No explanation. Only JSON."""
     except Exception as e:
         logger.warning(f"Advanced prompt enhancement failed: {e}")
         return {
-            "enhanced_prompt": f"{prompt}, high quality, detailed, 4k, sharp focus",
+            "enhanced_prompt": f"{prompt}, visually rich, detailed textures, cinematic composition",
             "negative_prompt": f"blurry, low quality, distorted, bad anatomy{', ' + user_negative if user_negative else ''}",
             "style": "cinematic",
-            "confidence": 0
+            "composition": "standard wide shot",
+            "lighting": "soft natural light"
         }
 
 def detect_style(prompt: str) -> str:

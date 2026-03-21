@@ -40,9 +40,11 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 1. Execute Ultra-Advanced Enhancer (handles styles + negatives + enhancements internally via JSON)
         prompt_data = await enhance_image_prompt(prompt, user_negative=negative_prompt)
         
-        final_desc = prompt_data["enhanced_prompt"]
-        final_neg = prompt_data["negative_prompt"]
-        detected_style = prompt_data["style"]
+        final_desc = prompt_data.get("enhanced_prompt", prompt)
+        final_neg = prompt_data.get("negative_prompt", "")
+        detected_style = prompt_data.get("style", "cinematic")
+        composition = prompt_data.get("composition", "")
+        lighting = prompt_data.get("lighting", "")
         
         # Format payload for SD API
         api_payload = f"{final_desc} | negative: {final_neg}"
@@ -55,8 +57,12 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"<b>Prompt:</b> {final_desc}\n"
             f"<b>Style:</b> {str(detected_style).title()}\n"
         )
+        if composition:
+            caption += f"<b>Composition:</b> {str(composition).title()}\n"
+        if lighting:
+            caption += f"<b>Lighting:</b> {str(lighting).title()}\n"
         if final_neg:
-            caption += f"<b>Avoided:</b> {final_neg}\n"
+            caption += f"<b>Avoided:</b> {str(final_neg)}\n"
         caption += f"\n{FOOTER}"
         
         keyboard = [[InlineKeyboardButton("🔍 Upscale (HD)", callback_data="action_upscale")]]
