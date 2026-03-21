@@ -10,10 +10,10 @@ logger = logging.getLogger(__name__)
 IMAGE_API_URL = "https://fixpix-image.bcjqxt9wn8.workers.dev/"
 
 OPENROUTER_MODELS = {
-    "Flux Pro": {"id": "black-forest-labs/flux.2-pro", "key": "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"},
-    "Flux Max": {"id": "black-forest-labs/flux.2-max", "key": "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"},
-    "Riverflow Fast": {"id": "sourceful/riverflow-v2-fast-preview", "key": "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"},
-    "SeeDream Creative": {"id": "bytedance-seed/seedream-4.5", "key": "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"}
+    "Flux Pro": {"id": "black-forest-labs/flux.2-pro", "env": "OPENROUTER_API_KEY_FLUX_PRO"},
+    "Flux Max": {"id": "black-forest-labs/flux.2-max", "env": "OPENROUTER_API_KEY_FLUX_MAX"},
+    "Riverflow Fast": {"id": "sourceful/riverflow-v2-fast-preview", "env": "OPENROUTER_API_KEY_RIVERFLOW"},
+    "SeeDream Creative": {"id": "bytedance-seed/seedream-4.5", "env": "OPENROUTER_API_KEY_SEEDREAM"}
 }
 
 # Predefined styles for generation
@@ -270,7 +270,8 @@ async def generate_multi_model_images(prompt: str) -> list:
     
     # Pack up concurrent processes
     for name, config in OPENROUTER_MODELS.items():
-        tasks.append(generate_image_openrouter(name, config["id"], prompt, config["key"]))
+        api_key = os.getenv(config["env"], "")
+        tasks.append(generate_image_openrouter(name, config["id"], prompt, api_key))
         
     results = await asyncio.gather(*tasks, return_exceptions=True)
     
