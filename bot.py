@@ -207,6 +207,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from handlers.image import upscale_callback_handler
             await upscale_callback_handler(update, context)
             return
+        if data == "action_variations":
+            from handlers.image import variation_callback_handler
+            await variation_callback_handler(update, context)
+            return
         await handle_quick_action(update, context, data)
         return
 

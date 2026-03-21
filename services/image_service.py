@@ -9,6 +9,13 @@ logger = logging.getLogger(__name__)
 
 IMAGE_API_URL = "https://fixpix-image.bcjqxt9wn8.workers.dev/"
 
+OPENROUTER_MODELS = {
+    "Flux Pro": {"id": "black-forest-labs/flux.2-pro", "key": "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"},
+    "Flux Max": {"id": "black-forest-labs/flux.2-max", "key": "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"},
+    "Riverflow Fast": {"id": "sourceful/riverflow-v2-fast-preview", "key": "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"},
+    "SeeDream Creative": {"id": "bytedance-seed/seedream-4.5", "key": "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"}
+}
+
 # Predefined styles for generation
 STYLES = {
     "anime": "anime style, vibrant colors, detailed illustration",
@@ -152,6 +159,128 @@ async def generate_image(prompt: str) -> bytes:
                 await asyncio.sleep(2) # brief delay before retry
     
     raise Exception("Failed to call API.")
+
+def score_image(image_bytes: bytes) -> float:
+    """
+    Fast heuristic scoring mechanism.
+    Evaluates file size (density) and optionally contrast sharpness if PIL is available.
+    """
+    import io
+    
+    # Base score: File size correlates heavily with detail complexity and texture density
+    score = len(image_bytes) / 1024.0
+    
+    try:
+        from PIL import Image, ImageStat
+        img = Image.open(io.BytesIO(image_bytes)).convert("L")
+        stat = ImageStat.Stat(img)
+        
+        # Contrast standard deviation adds strong value (punishes flat/blurry/foggy output)
+        contrast = stat.stddev[0]
+        score += (contrast * 2.5)
+    except ImportError:
+        pass # PIL not installed, gracefully fallback to density scoring
+        
+    return score
+
+async def generate_variation(base_prompt: str, seed_modifier: str) -> dict:
+    """Generates a single image variation and immediately scores it."""
+    # Ensure cache-busting and visual uniqueness
+    variation_prompt = f"{base_prompt}, {seed_modifier}"
+    try:
+        image_bytes = await generate_image(variation_prompt)
+        score = score_image(image_bytes)
+        return {"bytes": image_bytes, "score": score, "variation": seed_modifier}
+    except Exception as e:
+        logger.warning(f"Variation {seed_modifier} failed: {e}")
+        return None
+
+async def generate_best_image_parallel(prompt: str, variations_count: int = 3) -> dict:
+    """
+    Generates multiple images concurrently and mathematically selects the best one.
+    """
+    import random
+    modifiers = [
+        "soft cinematic tone", "dramatic lighting", "natural realism",
+        "hyper-detailed focus", "vibrant colors", "masterpiece depth"
+    ]
+    selected_modifiers = random.sample(modifiers, min(variations_count, len(modifiers)))
+    
+    tasks = [generate_variation(prompt, mod) for mod in selected_modifiers]
+    results = await asyncio.gather(*tasks)
+    
+    valid_results = [r for r in results if r is not None]
+    
+    if not valid_results:
+        # Fallback to single raw execution if all parallel tasks failed (e.g., rate limits)
+        raw_bytes = await generate_image(prompt)
+        return {"bytes": raw_bytes, "score": score_image(raw_bytes), "variation": "default"}
+        
+    # Automatic Best Image Selection Engine
+    best_candidate = max(valid_results, key=lambda x: x["score"])
+    
+    return best_candidate
+
+async def generate_image_openrouter(model_name: str, model_id: str, prompt: str, api_key: str) -> dict:
+    """Fetches image dynamically from OpenRouter's interface natively returning URL/Bytes."""
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "HTTP-Referer": "https://github.com/theparthbhanderi/bot",
+        "X-Title": "KINGPARTHH Bot"
+    }
+    payload = {
+        "model": model_id,
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            resp = await client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            
+            # Extract standard markdown image link ![desc](url) or raw url
+            import re
+            img_url = content
+            match = re.search(r'!\[.*?\]\((https?://.*?)\)', content)
+            if match:
+                img_url = match.group(1)
+            elif "http" in content:
+                urls = re.findall(r'(https?://[^\s]+)', content)
+                if urls:
+                    img_url = urls[0]
+            
+            # Pull down actual binary data to broadcast natively back to telegram
+            img_resp = await client.get(img_url, timeout=15.0)
+            img_resp.raise_for_status()
+            score = score_image(img_resp.content)
+            
+            return {"model": model_name, "image": img_resp.content, "score": score}
+            
+    except Exception as e:
+        logger.error(f"OpenRouter Model {model_name} failed: {e}")
+        return None
+
+async def generate_multi_model_images(prompt: str) -> list:
+    """Core pipeline executing all models in parallel synchronously and sorting by visual quality score."""
+    import asyncio
+    tasks = []
+    
+    # Pack up concurrent processes
+    for name, config in OPENROUTER_MODELS.items():
+        tasks.append(generate_image_openrouter(name, config["id"], prompt, config["key"]))
+        
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Filter out failures securely
+    valid_results = [r for r in results if isinstance(r, dict) and r is not None]
+    
+    # Enforce advanced heuristic scoring
+    valid_results.sort(key=lambda x: x["score"], reverse=True)
+    
+    return valid_results
 
 async def upscale_image(image_bytes: bytes) -> bytes:
     """
