@@ -244,6 +244,14 @@ async def generate_image_openrouter(model_name: str, model_id: str, prompt: str,
             # Extract standard markdown image link ![desc](url) or raw url
             import re
             img_url = content
+            
+            # Handle native base64 returning arrays dynamically
+            if content.startswith("data:image"):
+                import base64
+                header, encoded = content.split(",", 1)
+                img_bytes = base64.b64decode(encoded)
+                return {"model": model_name, "image": img_bytes, "score": score_image(img_bytes)}
+                
             match = re.search(r'!\[.*?\]\((https?://.*?)\)', content)
             if match:
                 img_url = match.group(1)
@@ -259,9 +267,13 @@ async def generate_image_openrouter(model_name: str, model_id: str, prompt: str,
             
             return {"model": model_name, "image": img_resp.content, "score": score}
             
+    except httpx.HTTPStatusError as e:
+        err_txt = e.response.text
+        logger.error(f"OpenRouter Model {model_name} HTTP {e.response.status_code}: {err_txt}")
+        return {"model": model_name, "error": f"HTTP {e.response.status_code}: {err_txt}"}
     except Exception as e:
         logger.error(f"OpenRouter Model {model_name} failed: {e}")
-        return None
+        return {"model": model_name, "error": str(e)}
 
 async def generate_multi_model_images(prompt: str) -> list:
     """Core pipeline executing all models in parallel synchronously and sorting by visual quality score."""
@@ -276,8 +288,17 @@ async def generate_multi_model_images(prompt: str) -> list:
     results = await asyncio.gather(*tasks, return_exceptions=True)
     
     # Filter out failures securely
-    valid_results = [r for r in results if isinstance(r, dict) and r is not None]
+    valid_results = [r for r in results if isinstance(r, dict) and r.get("image") is not None]
     
+    if not valid_results:
+        # Assemble highly explicit debug tracker for the user UI
+        errors = [f"<b>{r.get('model', 'Unknown')}</b>: {r.get('error')}" for r in results if isinstance(r, dict) and r.get("error")]
+        if not errors:
+            raise Exception("All OpenRouter pipelines timed out silently.")
+            
+        debug_trace = "\n".join(errors)
+        raise Exception(f"All OpenRouter pipelines failed. Debug Trace:\n\n{debug_trace}")
+        
     # Enforce advanced heuristic scoring
     valid_results.sort(key=lambda x: x["score"], reverse=True)
     
